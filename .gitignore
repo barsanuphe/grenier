@@ -1,0 +1,7 @@
+*.pyc
+*.log
+grenier.yaml
+*~
+TODO
+old
+hubic_credentials
