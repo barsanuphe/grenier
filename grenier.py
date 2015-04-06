@@ -111,6 +111,7 @@ if __name__ == "__main__":
                                 help='Restore latest to this directory.')
 
     args = parser.parse_args()
+    logger.debug(args)
 
     if args.names is None:
         print("No project selected. Nothing can be done.")
@@ -157,8 +158,10 @@ if __name__ == "__main__":
                     for drive in [el for el in args.backup_target if el not in ["google", "hubic", "all"]]:
                         p.save_to_disk(drive)
                 if args.fuse:
-                    #TODO tester si déjà monté, et alors unfuse
-                    p.fuse(args.fuse[0])
+                    if is_fuse_mounted(args.fuse[0]):
+                        p.unfuse(args.fuse[0])
+                    else:
+                        p.fuse(args.fuse[0])
                 if args.restore:
                     p.restore(args.restore[0])
 

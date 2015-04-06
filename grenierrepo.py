@@ -67,6 +67,7 @@ class GrenierRepo(object):
         if folder is not None:
             self.fuse_dir = folder
         if self.fuse_dir is not None:
+            logger.info("+ Unmounting repository from %s."%(folder))
             os.system("fusermount -u %s"%self.fuse_dir)
 
     def add_google_drive_backend(self, address):
