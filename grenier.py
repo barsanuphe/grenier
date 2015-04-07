@@ -13,9 +13,6 @@ from grenierrepo import *
 script_dir = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = Path(script_dir, "grenier.yaml")
 
-#TODO: faire bcp mieux
-PASSPHRASE = "courgettebleue!"
-
 #---GRENIER---------------------------
 
 class Grenier(object):
@@ -34,7 +31,9 @@ class Grenier(object):
         if self.config_file.exists():
             self.config = yaml.load(open(self.config_file.as_posix(), 'r'))
             for p in list(self.config.keys()):
-                bp = GrenierGrenier(p, self.config[p]["backup_dir"])
+                bp = GrenierGrenier(p,
+                                    self.config[p]["backup_dir"],
+                                    self.config[p].get("passphrase", None))
                 sources_dict = self.config[p]["sources"]
                 for s in list(sources_dict.keys()):
                     bp.add_source(s,

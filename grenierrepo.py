@@ -14,7 +14,7 @@ class GrenierSource(object):
 
 
 class GrenierRepo(object):
-    def __init__(self, name, backup_dir):
+    def __init__(self, name, backup_dir, passphrase=None):
         self.name = name
         self.backup_dir = Path(backup_dir)
         if not self.backup_dir.exists():
@@ -25,6 +25,7 @@ class GrenierRepo(object):
         self.google_address = None
         self.hubic_credentials = None
         self.backup_disks = []
+        self.passphrase = passphrase
 
     def add_source(self, name, target_dir, excluded=[]):
         self.sources.append(GrenierSource(name, target_dir, excluded))
@@ -81,7 +82,7 @@ class GrenierRepo(object):
         if self.has_valid_google_address:
             start = time.time()
             logger.info("+ Syncing with google drive.")
-            duplicity_command([self.backup_dir.as_posix(), "gdocs://%s/bupdup/%s"%(self.google_address, self.name)], PASSPHRASE)
+            duplicity_command([self.backup_dir.as_posix(), "gdocs://%s/bupdup/%s"%(self.google_address, self.name)], self.passphrase)
             logger.info("+ Synced in %.2fs."%(time.time() - start))
     def restore_from_google_drive(self, target):
         if not create_or_check_if_empty(target):
@@ -89,7 +90,7 @@ class GrenierRepo(object):
             sys.exit(-1)
         if self.has_valid_google_address:
             logger.info("+ Restoring from google drive.")
-            duplicity_command(["gdocs://%s/bupdup/%s" % (self.google_address, self.name), target], PASSPHRASE)
+            duplicity_command(["gdocs://%s/bupdup/%s" % (self.google_address, self.name), target], self.passphrase)
 
     def add_hubic_backend(self):
         # TODO: manage credentials
@@ -99,7 +100,7 @@ class GrenierRepo(object):
         if self.hubic_credentials:
             start = time.time()
             logger.info("+ Syncing with hubic.")
-            duplicity_command([self.backup_dir.as_posix(), "cf+hubic://%s"%self.name], PASSPHRASE)
+            duplicity_command([self.backup_dir.as_posix(), "cf+hubic://%s"%self.name], self.passphrase)
             logger.info("+ Synced in %.2fs."%(time.time() - start))
     def restore_from_hubic(self, target):
         if not create_or_check_if_empty(target):
@@ -107,7 +108,7 @@ class GrenierRepo(object):
             sys.exit(-1)
         # TODO aller chercher credentials dans config
         logger.info("+ Restoring from hubic.")
-        duplicity_command(["cf+hubic://%s"%self.name, target], PASSPHRASE)
+        duplicity_command(["cf+hubic://%s"%self.name, target], self.passphrase)
 
     def add_disks(self, disks_list):
         self.backup_disks = disks_list
@@ -185,36 +186,29 @@ class GrenierBup(GrenierRepo):
 
 class GrenierGrenier(GrenierRepo):
 
-    def __init__(self, name, backup_dir):
-        super().__init__(name, backup_dir)
+    def __init__(self, name, backup_dir, passphrase):
+        super().__init__(name, backup_dir, passphrase)
         self.attic = Archiver()
 
     def do_init(self):
         #TODO mettre les bonnes options
-        self.attic.run(["init", self.backup_dir.as_posix(), "--encryption=passphrase"])
+        attic_command(["init", self.backup_dir.as_posix(), "--encryption=passphrase"], self.passphrase)
 
     def do_save(self, source):
         logger.info("+ Saving source directory %s to %s."%(source.target_dir, self.backup_dir))
         excluded = ["-e '*.%s'"%el for el in source.excluded_extensions]
-        self.attic.run(["create", '--do-not-cross-mountpoints', "--stats", "--progress", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded)
+        attic_command(["create", '--do-not-cross-mountpoints', "--stats", "--progress", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded, self.passphrase)
 
     def do_check(self):
         #TODO repair is experimental?  "--repair",
-        self.attic.run(["check", "-v", self.backup_dir.as_posix()])
+        attic_command(["check", "-v", self.backup_dir.as_posix()], self.passphrase)
 
     def do_restore(self, source, target):
         origin = os.getcwd()
 
         # get latest archive name for source.name
-        p = subprocess.Popen(["attic", "list", self.backup_dir.as_posix()],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.STDOUT,
-                         bufsize=1)#, env={"ATTIC_PASSPHRASE": "p"})
-        archives = []
-        for line in iter(p.stdout.readline, b''):
-            archives.append(line.decode("utf8").strip().split(" ")[0].strip())
-        p.communicate()
-        archives = [el for el in archives if el.split("_")[-1] == source.name]
+        archives = attic_command(["list", self.backup_dir.as_posix()], self.passphrase, quiet=True)
+        archives = [el.split(" ")[0].strip() for el in archives if el.split(" ")[0].strip().split("_")[-1] == source.name]
         archives.sort()
         latest_archive_name = archives[-1]
 
@@ -225,8 +219,8 @@ class GrenierGrenier(GrenierRepo):
             sys.exit(-1)
         # cd to this
         os.chdir(p.as_posix())
-        self.attic.run(["extract", "-v", "%s::%s"%(self.backup_dir, latest_archive_name)])
+        attic_command(["extract", "-v", "%s::%s"%(self.backup_dir, latest_archive_name)], self.passphrase)
         os.chdir(origin)
 
     def do_fuse(self, folder):
-        self.attic.run(["mount", "-v", self.backup_dir.as_posix(), folder])
+        attic_command(["mount", "-v", self.backup_dir.as_posix(), folder], self.passphrase)
