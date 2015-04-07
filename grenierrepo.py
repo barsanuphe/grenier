@@ -197,7 +197,7 @@ class GrenierGrenier(GrenierRepo):
     def do_save(self, source):
         logger.info("+ Saving source directory %s to %s."%(source.target_dir, self.backup_dir))
         excluded = ["-e '*.%s'"%el for el in source.excluded_extensions]
-        attic_command(["create", '--do-not-cross-mountpoints', "--stats", "--progress", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded, self.passphrase)
+        attic_command(["create", '--do-not-cross-mountpoints', "--stats", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded, self.passphrase)
 
     def do_check(self):
         #TODO repair is experimental?  "--repair",

@@ -143,7 +143,7 @@ if __name__ == "__main__":
         g.open_config()
         for p in g.repositories:
             if p.name in args.names or args.names == ["all"]:
-                logger.info("  == Grenier %s == \n"%p.name)
+                logger.info("+++ Working on %s +++\n"%p.name)
                 logger.debug(p)
                 if args.check:
                     p.check_and_repair()
