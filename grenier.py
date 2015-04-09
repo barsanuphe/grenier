@@ -167,4 +167,7 @@ if __name__ == "__main__":
                 # p.save_to_folder("/home/barsanuphe/aubergine/sauvegarde/test/")
                 # p.restore_from_google_drive("/home/barsanuphe/aubergine/sauvegarde/test/")
 
-    logger.info("\n+ Everything was done in %.2fs."%(time.time() - overall_start))
+    overall_time = time.time() - overall_start
+    logger.info("\n+ Everything was done in %.2fs." % overall_time)
+    notify_this("Everything was done in %.2fs." % overall_time)
+

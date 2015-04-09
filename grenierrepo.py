@@ -122,11 +122,16 @@ class GrenierRepo(object):
                 self.save_to_folder(Path(mount_point, self.name))
 
     def save_to_folder(self, target):
-        if not Path(target).is_absolute():
-            logger.error("Directory %s is not an absolute path, nothing will be done."%target)
+        path = Path(target)
+        if not path.is_absolute():
+            logger.error("Directory %s is not an absolute path,"
+                         "nothing will be done." % path)
         else:
-            logger.info("+ Syncing with %s."%target)
-        duplicity_command([self.backup_dir.as_posix(), Path(target).as_uri()], PASSPHRASE)
+            logger.info("+ Syncing with %s."%path)
+            if not path.exists():
+                path.mkdir(parents=True)
+            duplicity_command([self.backup_dir.as_posix(), path.as_uri()],
+                              self.passphrase)
     def restore_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
             logger.error("Directory %s is not empty, not doing anything."%target)
@@ -136,7 +141,7 @@ class GrenierRepo(object):
             sys.exit(-1)
         else:
             logger.info("+ Restoring from %s to %s."%(folder, target))
-            duplicity_command([Path(folder).as_uri(), target], PASSPHRASE)
+            duplicity_command([Path(folder).as_uri(), target], self.passphrase)
 
     def __str__(self):
         txt = "++ Project %s\n"%self.name
@@ -196,12 +201,15 @@ class GrenierGrenier(GrenierRepo):
 
     def do_save(self, source):
         logger.info("+ Saving source directory %s to %s."%(source.target_dir, self.backup_dir))
-        excluded = ["-e '*.%s'"%el for el in source.excluded_extensions]
+        excluded = []
+        for excl in source.excluded_extensions:
+            excluded.extend(["--exclude", "*.%s"%excl])
+
         attic_command(["create", '--do-not-cross-mountpoints', "--stats", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded, self.passphrase)
 
     def do_check(self):
         #TODO repair is experimental?  "--repair",
-        attic_command(["check", "-v", self.backup_dir.as_posix()], self.passphrase)
+        attic_command(["check", "-v", "--repository-only", self.backup_dir.as_posix()], self.passphrase)
 
     def do_restore(self, source, target):
         origin = os.getcwd()

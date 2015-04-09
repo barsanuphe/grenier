@@ -4,6 +4,7 @@ from pathlib import Path
 from logger import *
 
 def duplicity_command(cmd, passphrase):
+    logger.debug(cmd)
     if passphrase:
         env_dict = {"PASSPHRASE": passphrase}
     else:
@@ -13,18 +14,20 @@ def duplicity_command(cmd, passphrase):
                         stderr=subprocess.PIPE,
                         bufsize=1,
                         env=env_dict)
+    cpt = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode("utf8").rstrip()
         if line.startswith("Processed"):
-            logger.info(".")
+            logger.info("Processed file %s"%cpt)
+            cpt += 1
     for line in iter(p.stderr.readline, b''):
         line = line.decode("utf8").rstrip()
         if "warning" not in line.lower():
             logger.warning("\t !!! " + line)
     p.communicate()
-    logger.info(".")
 
 def attic_command(cmd, passphrase, quiet=False):
+    logger.debug(cmd)
     if passphrase:
         env_dict = {"ATTIC_PASSPHRASE": passphrase}
     else:
@@ -70,3 +73,11 @@ def is_fuse_mounted(directory):
     if directory.endswith("/"):
         directory = directory[:-1]
     return directory in list_fuse_mounts()
+
+def notify_this(text):
+    notify2.init("grenier")
+    n = notify2.Notification("Grenier",
+                             text,
+                             "drive-removable-media")
+    n.set_timeout(2000)
+    n.show()

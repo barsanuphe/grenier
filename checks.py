@@ -11,13 +11,13 @@ except Exception as err:
     sys.exit(-1)
 try:
     # installer: duplicity
-    assert subprocess.call(["duplicity","--version"], 
+    assert subprocess.call(["duplicity","--version"],
                            stdout=subprocess.DEVNULL) == 0
 except Exception as err:
     print("duplicity must be installed!")
     sys.exit(-1)
 try:
-    assert subprocess.call(["python2","-c", "'import pyrax'"], 
+    assert subprocess.call(["python2","-c", "'import pyrax'"],
                            stdout=subprocess.DEVNULL) == 0
 except Exception as err:
     print("pyrax (for python2) must be installed!: sudo pip install pyrax.")
@@ -34,5 +34,11 @@ try:
     import attic
 except Exception as err:
     print("attic must be installed!")
-    sys.exit(-1)   
-    
+    sys.exit(-1)
+
+try:
+    # install: python-notify2
+    import notify2
+except Exception as err:
+    print("python-notify2 must be installed!")
+    sys.exit(-1)
