@@ -154,7 +154,12 @@ if __name__ == "__main__":
                         p.save_to_google_drive()
                     if "hubic" in args.backup_target or args.backup_target == ["all"]:
                         p.save_to_hubic()
-                    for drive in [el for el in args.backup_target if el not in ["google", "hubic", "all"]]:
+                    # finding what drives to back up
+                    if args.backup_target == ["all"]:
+                        drives_to_backup = p.backup_disks
+                    else:
+                        drives_to_backup = [d for d in args.backup_target if d in p.backup_disks]
+                    for drive in drives_to_backup:
                         p.save_to_disk(drive)
                 if args.fuse:
                     if is_fuse_mounted(args.fuse[0]):

@@ -2,6 +2,7 @@ import subprocess
 from pathlib import Path
 
 from logger import *
+from checks import *
 
 def duplicity_command(cmd, passphrase):
     logger.debug(cmd)
@@ -17,11 +18,13 @@ def duplicity_command(cmd, passphrase):
     cpt = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode("utf8").rstrip()
+        logger.debug(line)
         if line.startswith("Processed"):
             logger.info("Processed file %s"%cpt)
             cpt += 1
     for line in iter(p.stderr.readline, b''):
         line = line.decode("utf8").rstrip()
+        logger.debug(line)
         if "warning" not in line.lower():
             logger.warning("\t !!! " + line)
     p.communicate()
@@ -49,13 +52,27 @@ def attic_command(cmd, passphrase, quiet=False):
     p.communicate()
     return output
 
+def rsync_command(cmd, quiet=False):
+    logger.debug(cmd)
+    p = subprocess.Popen(["rsync", "-va", "--delete", "--progress", "--force"] + cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        bufsize=1)
+    for line in iter(p.stdout.readline, b''):
+        if not quiet:
+            logger.info(line.decode("utf8").rstrip())
+    for line in iter(p.stderr.readline, b''):
+        if not quiet:
+            logger.warning("\t !!! " + line.decode("utf8").rstrip())
+    p.communicate()
+
 def create_or_check_if_empty(target):
     t = Path(target)
     if not t.exists():
         t.mkdir(parents=True)
         return True
     else:
-        return (list(t.rglob('*')) == [])
+        return (list(t.glob('*')) == [])
 
 def list_fuse_mounts():
     p = subprocess.Popen(["mount"],

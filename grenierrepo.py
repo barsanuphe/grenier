@@ -82,7 +82,7 @@ class GrenierRepo(object):
         if self.has_valid_google_address:
             start = time.time()
             logger.info("+ Syncing with google drive.")
-            duplicity_command([self.backup_dir.as_posix(), "gdocs://%s/bupdup/%s"%(self.google_address, self.name)], self.passphrase)
+            duplicity_command([self.backup_dir.as_posix(), "gdocs://%s/grenier/%s"%(self.google_address, self.name)], self.passphrase)
             logger.info("+ Synced in %.2fs."%(time.time() - start))
     def restore_from_google_drive(self, target):
         if not create_or_check_if_empty(target):
@@ -90,7 +90,7 @@ class GrenierRepo(object):
             sys.exit(-1)
         if self.has_valid_google_address:
             logger.info("+ Restoring from google drive.")
-            duplicity_command(["gdocs://%s/bupdup/%s" % (self.google_address, self.name), target], self.passphrase)
+            duplicity_command(["gdocs://%s/grenier/%s" % (self.google_address, self.name), target], self.passphrase)
 
     def add_hubic_backend(self):
         # TODO: manage credentials
@@ -114,12 +114,11 @@ class GrenierRepo(object):
         self.backup_disks = disks_list
     def save_to_disk(self, disk_name):
         if self.backup_disks and disk_name in self.backup_disks:
-            mount_point = "/run/media/%s/%s"%(getpass.getuser(), disk_name)
-            if not Path(mount_point).exists():
-                logger.error("Drive %s is not mounted."%disk_name)
-                sys.exit(-1)
+            mount_point = Path("/run/media/%s/%s"%(getpass.getuser(), disk_name))
+            if not mount_point.exists():
+                logger.error("!! Drive %s is not mounted."%disk_name)
             else:
-                self.save_to_folder(Path(mount_point, self.name))
+                self.save_to_folder(mount_point)
 
     def save_to_folder(self, target):
         path = Path(target)
@@ -130,15 +129,14 @@ class GrenierRepo(object):
             logger.info("+ Syncing with %s."%path)
             if not path.exists():
                 path.mkdir(parents=True)
-            duplicity_command([self.backup_dir.as_posix(), path.as_uri()],
-                              self.passphrase)
+
+            rsync_command([self.backup_dir.as_posix(), path.as_posix()])
+            #duplicity_command([self.backup_dir.as_posix(), path.as_uri()], self.passphrase)
     def restore_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
-            logger.error("Directory %s is not empty, not doing anything."%target)
-            sys.exit(-1)
-        if not Path(target).is_absolute():
-            logger.error("Directory %s is not an absolute path, nothing will be done."%target)
-            sys.exit(-1)
+            logger.error("!! Directory %s is not empty, not doing anything."%target)
+        elif not Path(target).is_absolute():
+            logger.error("!! Directory %s is not an absolute path, nothing will be done."%target)
         else:
             logger.info("+ Restoring from %s to %s."%(folder, target))
             duplicity_command([Path(folder).as_uri(), target], self.passphrase)
