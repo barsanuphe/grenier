@@ -1,4 +1,6 @@
-import logging, os, time
+import logging
+import os
+import time
 from pathlib import Path
 
 def set_up_logger(program):
@@ -12,7 +14,7 @@ def set_up_logger(program):
     ch.setLevel(logging.INFO)
     logger.addHandler(ch)
 
-    fh = logging.FileHandler("log/%s_%s.log" % (time.strftime("%Y-%m-%d_%Hh%M"), 
+    fh = logging.FileHandler("log/%s_%s.log" % (time.strftime("%Y-%m-%d_%Hh%M"),
                                               program))
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)

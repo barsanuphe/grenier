@@ -42,3 +42,11 @@ try:
 except Exception as err:
     print("python-notify2 must be installed!")
     sys.exit(-1)
+
+try:
+    # install: python-crypto
+    from Crypto import Random
+    from Crypto.Cipher import AES
+except Exception as err:
+    print("python-crypto must be installed!")
+    sys.exit(-1)

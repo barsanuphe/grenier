@@ -1,5 +1,7 @@
 import subprocess
+import time
 from pathlib import Path
+import notify2
 
 from logger import *
 from checks import *
@@ -98,3 +100,11 @@ def notify_this(text):
                              "drive-removable-media")
     n.set_timeout(2000)
     n.show()
+
+def update_or_create_sync_file(path, backup_name):
+    if not path.exists():
+        synced = {}
+    else:
+        synced = yaml.load(open(path.as_posix(), 'r'))
+    synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
+    yaml.dump(synced, open(path.as_posix(), 'w'), default_flow_style=False)

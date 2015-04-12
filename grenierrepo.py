@@ -131,7 +131,9 @@ class GrenierRepo(object):
                 path.mkdir(parents=True)
 
             rsync_command([self.backup_dir.as_posix(), path.as_posix()])
-            #duplicity_command([self.backup_dir.as_posix(), path.as_uri()], self.passphrase)
+            update_or_create_sync_file(Path(path, "last_synced.yaml"),
+                                       self.name)
+
     def restore_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
             logger.error("!! Directory %s is not empty, not doing anything."%target)

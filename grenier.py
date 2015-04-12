@@ -1,54 +1,104 @@
 #!/usr/env/python
-import os, time, subprocess, sys, datetime, argparse
+import os
+import time
+import subprocess
+import sys
+import datetime
+import argparse
+import shutil
 from pathlib import Path
 
 # CHECKS
 from checks import *
 from logger import *
 from grenierrepo import *
+from crypto import *
 
 #---CONFIG---------------------------
 
 # config is located next to this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
 CONFIG_FILE = Path(script_dir, "grenier.yaml")
+ENCRYPTION_FLAG = ".encrypted"
 
 #---GRENIER---------------------------
 
 class Grenier(object):
-    def __init__(self, config_file):
+    def __init__(self, config_file, toggle_encryption=False):
         self.config_file = config_file
+        self.toggle_encryption = toggle_encryption
         self.config = None
         self.repositories = []
+        self.originally_encrypted = False
+        self.encrypted_file_flag = Path(self.config_file.parent, ENCRYPTION_FLAG)
+        self.config_encryption_passphrase = None
+
+
+    def is_config_file_encrypted(self):
+        first_check = (type(yaml.load(open(self.config_file.as_posix(), 'r')))
+                       == str)
+        second_check = Path(self.config_file.parent, ENCRYPTION_FLAG).exists()
+        return first_check and second_check
 
     def __enter__(self):
+        if self.is_config_file_encrypted():
+            self.originally_encrypted = True
+            print("Decrypting config file.")
+            # sauvegarde du crypté
+            shutil.copyfile(self.config_file.as_posix(),
+                            "%s_backup" % self.config_file.as_posix())
+            self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
+            decrypt_file(self.config_file.as_posix(),
+                         self.config_encryption_passphrase)
+            if self.encrypted_file_flag.exists():
+                os.remove(self.encrypted_file_flag.as_posix())
+        else:
+            self.originally_encrypted = False
         return self
+
     def __exit__(self, exc_type, exc_value, traceback):
-        pass
-        #print( exc_type+ exc_value+ traceback)
+        if exc_type is not None:
+            print(exc_type)
+            print(exc_value)
+            print(traceback)
+        # encrypt config if necessary
+        if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
+            logger.info("Encrypting config file.")
+            if self.config_encryption_passphrase is None:
+                self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
+            encrypt_file(self.config_file.as_posix(),
+                         self.config_encryption_passphrase)
+            open(self.encrypted_file_flag.as_posix(), 'a').close()
 
     def open_config(self):
         if self.config_file.exists():
-            self.config = yaml.load(open(self.config_file.as_posix(), 'r'))
-            for p in list(self.config.keys()):
-                bp = GrenierGrenier(p,
-                                    self.config[p]["backup_dir"],
-                                    self.config[p].get("passphrase", None))
-                sources_dict = self.config[p]["sources"]
-                for s in list(sources_dict.keys()):
-                    bp.add_source(s,
-                                  sources_dict[s]["dir"],
-                                  sources_dict[s].get("excluded", []))
-                backups_dict = self.config[p]["backups"]
-                if "googledrive" in list(backups_dict.keys()):
-                    bp.add_google_drive_backend(backups_dict["googledrive"])
-                if "hubic" in list(backups_dict.keys()):
-                    bp.add_hubic_backend()
-                if "disks" in list(backups_dict.keys()):
-                    bp.add_disks(backups_dict["disks"])
-                self.repositories.append(bp)
+            try:
+                self.config = yaml.load(open(self.config_file.as_posix(), 'r'))
+                for p in list(self.config.keys()):
+                    bp = GrenierGrenier(p,
+                                        self.config[p]["backup_dir"],
+                                        self.config[p].get("passphrase", None))
+                    sources_dict = self.config[p]["sources"]
+                    for s in list(sources_dict.keys()):
+                        bp.add_source(s,
+                                    sources_dict[s]["dir"],
+                                    sources_dict[s].get("excluded", []))
+                    backups_dict = self.config[p]["backups"]
+                    if "googledrive" in list(backups_dict.keys()):
+                        bp.add_google_drive_backend(backups_dict["googledrive"])
+                    if "hubic" in list(backups_dict.keys()):
+                        bp.add_hubic_backend()
+                    if "disks" in list(backups_dict.keys()):
+                        bp.add_disks(backups_dict["disks"])
+                    self.repositories.append(bp)
+                return True
+            except Exception as err:
+                print("Invalid configuration file!!")
+                #raise Exception("Invalid file!")
+                return False
         else:
-            raise Exception("Invalid configuration file!!")
+            print("No configuration file found!")
+            return False
 
 if __name__ == "__main__":
     logger.info("\n# # # G R E N I E R # # #\n")
@@ -64,6 +114,11 @@ if __name__ == "__main__":
                                metavar="CONFIG_FILE",
                                nargs=1,
                                help='Use an alternative configuration file.')
+    group_config.add_argument('--encrypt',
+                               dest='encrypt',
+                               action='store_true',
+                               default=False,
+                               help='Toggle encryption on the configuration file.')
 
     group_projects = parser.add_argument_group('Backups', 'Manage backups.')
     group_projects.add_argument('-n',
@@ -139,8 +194,12 @@ if __name__ == "__main__":
 
     # This is where stuff actually gets done.
     overall_start = time.time()
-    with Grenier(configuration_file) as g:
-        g.open_config()
+    with Grenier(configuration_file, args.encrypt) as g:
+        if not g.open_config():
+            print("Invalid configuration. Exiting.")
+            if g.originally_encrypted:
+                print("Bad encryption passphrase maybe? Manually restore the backup.")
+            sys.exit(-1)
         for p in g.repositories:
             if p.name in args.names or args.names == ["all"]:
                 logger.info("+++ Working on %s +++\n"%p.name)
