@@ -1,20 +1,17 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 import base64
 import hashlib
 import getpass
-import os
 
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from grenier.logger import *
 from grenier.helpers import *
 
 class AESCipher(object):
-    def __init__(self, key):
-        self.key = hashlib.sha256(key.encode()).digest()
+    def __init__(self, passphrase=None):
+        if passphrase is None:
+            passphrase = getpass.getpass("Passphrase:")
+        self.key = hashlib.sha256(passphrase.encode()).digest()
 
     def encrypt(self, raw):
         raw = self._pad(raw)
@@ -35,22 +32,20 @@ class AESCipher(object):
     def _unpad(self, r):
         return r[:-r[-1]]
 
-def encrypt_file(path, password):
-    c = AESCipher(password)
-    f = open(path, "rb")
-    not_encrypted = f.read()
-    f.close()
-    encrypted = c.encrypt(not_encrypted)
-    f = open(path, "wb")
-    f.write(encrypted)
-    f.close()
+    def encrypt_file(self, path):
+        f = open(path, "rb")
+        not_encrypted = f.read()
+        f.close()
+        encrypted = self.encrypt(not_encrypted)
+        f = open(path, "wb")
+        f.write(encrypted)
+        f.close()
 
-def decrypt_file(path, password):
-    c = AESCipher(password)
-    f = open(path, "rb")
-    encrypted = f.read()
-    f.close()
-    not_encrypted = c.decrypt(encrypted)
-    f = open(path, "wb")
-    f.write(not_encrypted)
-    f.close()
+    def decrypt_file(self, path):
+        f = open(path, "rb")
+        encrypted = f.read()
+        f.close()
+        not_encrypted = self.decrypt(encrypted)
+        f = open(path, "wb")
+        f.write(not_encrypted)
+        f.close()

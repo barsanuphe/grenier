@@ -34,7 +34,7 @@ class Grenier(object):
         self.repositories = []
         self.originally_encrypted = False
         self.encrypted_file_flag = Path(self.config_file.parent, ENCRYPTION_FLAG)
-        self.config_encryption_passphrase = None
+        self.cipher = None
         self.reencrypted = False
 
 
@@ -51,9 +51,8 @@ class Grenier(object):
             # sauvegarde du crypté
             shutil.copyfile(self.config_file.as_posix(),
                             "%s_backup" % self.config_file.as_posix())
-            self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
-            decrypt_file(self.config_file.as_posix(),
-                         self.config_encryption_passphrase)
+            self.cipher = AESCipher()
+            self.cipher.decrypt_file(self.config_file.as_posix())
             if self.encrypted_file_flag.exists():
                 os.remove(self.encrypted_file_flag.as_posix())
         else:
@@ -70,10 +69,9 @@ class Grenier(object):
             # encrypt config if necessary
             if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
                 logger.info("Encrypting config file.")
-                if self.config_encryption_passphrase is None:
-                    self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
-                encrypt_file(self.config_file.as_posix(),
-                            self.config_encryption_passphrase)
+                if self.cipher is None:
+                    self.cipher = AESCipher()
+                self.cipher.encrypt_file(self.config_file.as_posix())
                 open(self.encrypted_file_flag.as_posix(), 'a').close()
                 self.reencrypted = True
 
