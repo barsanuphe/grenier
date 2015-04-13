@@ -117,8 +117,21 @@ class Grenier(object):
                 for sync in r.just_synced:
                     last_synced[r.name].update(sync)
         yaml.dump(last_synced,
-                open(path.as_posix(), 'w'),
-                default_flow_style=False)
+                  open(path.as_posix(), 'w'),
+                  default_flow_style=False)
+
+    def show_last_synced(self):
+        data_path = xdg.BaseDirectory.save_data_path("grenier")
+        path = Path(data_path, "last_synced.yml")
+        if path.exists():
+            last_synced = yaml.load(open(path.as_posix(), 'r'))
+        else:
+            last_synced = {}
+
+        for r in list(last_synced.keys()):
+            logger.info("%s:" % r)
+            for dest in list(last_synced[r].keys()):
+                logger.info("\t%s: %s" % (dest, last_synced[r][dest]))
 
 
 def main():
@@ -185,11 +198,15 @@ def main():
                                 metavar="RESTORE_DIRECTORY",
                                 nargs=1,
                                 help='Restore latest to this directory.')
-
+    group_projects.add_argument('--last-synced',
+                                dest='last_synced',
+                                action='store_true',
+                                default=False,
+                                help='list when you last backed up repositories.')
     args = parser.parse_args()
     logger.debug(args)
 
-    if args.names is None:
+    if args.names is None and args.last_synced is False and args.encrypt is False:
         print("No project selected. Nothing can be done.")
         sys.exit(-1)
 
@@ -231,7 +248,7 @@ def main():
                           "Manually restore the backup.")
                 sys.exit(-1)
             for p in g.repositories:
-                if p.name in args.names or args.names == ["all"]:
+                if args.names is not None and p.name in args.names or args.names == ["all"]:
                     logger.info("+++ Working on %s +++\n" % p.name)
                     logger.debug(p)
                     if args.check:
@@ -261,6 +278,8 @@ def main():
                             p.fuse(args.fuse[0])
                     if args.restore:
                         p.restore(args.restore[0])
+            if args.last_synced:
+                g.show_last_synced()
 
         overall_time = time.time() - overall_start
         logger.info("\n+ Everything was done in %.2fs." % overall_time)

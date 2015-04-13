@@ -56,7 +56,9 @@ The configuration file *grenier.yaml* is expected to be in
 file there, because let's face it, `$XDG_CONFIG_HOME` is a sad and lonely place
 you never visit.
 
-Logs are in `$XDG_DATA_HOME/grenier/logs`.
+Logs are in `$XDG_DATA_HOME/grenier`, along with another yaml file that keeps
+track of when you last backed up you repositories to another hard drive or to
+the cloud (see `--last-synced`).
 
 ### Usage
 
@@ -69,10 +71,10 @@ the right thing and switch to Archlinux, or you can launch with
 
     # # # G R E N I E R # # #
 
-    usage: grenier.py [-h] [--config CONFIG_FILE] [--encrypt]
-                    [-n BACKUP_NAME [BACKUP_NAME ...]] [-b]
-                    [-s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]] [-c]
-                    [-f MOUNT_POINT] [-r RESTORE_DIRECTORY]
+    usage: grenier [-h] [--config CONFIG_FILE] [--encrypt]
+                [-n BACKUP_NAME [BACKUP_NAME ...]] [-b]
+                [-s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]] [-c]
+                [-f MOUNT_POINT] [-r RESTORE_DIRECTORY] [--last-synced]
 
     Grenier. A wrapper around attic and duplicity to back stuff up.
 
@@ -99,6 +101,8 @@ the right thing and switch to Archlinux, or you can launch with
                             Mount/unmount a specified backup to a mountpoint.
     -r RESTORE_DIRECTORY, --restore RESTORE_DIRECTORY
                             Restore latest to this directory.
+    --last-synced         list when you last backed up repositories.
+
 
 ### Example commands
 
@@ -151,6 +155,11 @@ How about restoring files from copies/the cloud you say?
 That will never happen. Or maybe just once. You don't need a wrapper for this.
 Just use `attic` and/or `duplicity` directly. Chances are if that happens you
 will not mind checking out their man pages.
+
+When did you last update the copies of your repositories on that hard drive
+you dropped off at your cousin's home?
+
+    grenier --last-synced
 
 ### Configuration
 
