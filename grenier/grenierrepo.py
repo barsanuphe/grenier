@@ -11,6 +11,8 @@ from pathlib import Path
 from grenier.logger import *
 from grenier.helpers import *
 
+import yaml
+
 class GrenierSource(object):
     def __init__(self, name, target_dir, format_list=[]):
         self.name = name

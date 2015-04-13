@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 import notify2
+import yaml
 
 from grenier.logger import *
 from grenier.checks import *
@@ -59,13 +60,10 @@ def attic_command(cmd, passphrase, quiet=False):
 
 def rsync_command(cmd, quiet=False):
     logger.debug(cmd)
-    p = subprocess.Popen(["rsync", "-va", "--delete", "--progress", "--force"] + cmd,
-                        stdout=subprocess.PIPE,
+    p = subprocess.Popen(["rsync", "-a", "--delete","--human-readable",
+                          "--info=progress2", "--force"] + cmd,
                         stderr=subprocess.PIPE,
                         bufsize=1)
-    for line in iter(p.stdout.readline, b''):
-        if not quiet:
-            logger.info("\t"+line.decode("utf8").rstrip())
     for line in iter(p.stderr.readline, b''):
         if not quiet:
             logger.warning("\t !!! " + line.decode("utf8").rstrip())
