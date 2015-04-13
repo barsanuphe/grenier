@@ -1,8 +1,8 @@
 import logging
-import os
 import time
 from pathlib import Path
 import xdg.BaseDirectory
+
 
 def set_up_logger(program):
     data_path = xdg.BaseDirectory.save_data_path(program)

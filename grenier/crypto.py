@@ -5,13 +5,19 @@ import getpass
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from grenier.helpers import *
 
 class AESCipher(object):
     def __init__(self, passphrase=None):
         if passphrase is None:
             passphrase = getpass.getpass("Passphrase:")
         self.key = hashlib.sha256(passphrase.encode()).digest()
+
+    def _pad(self, s):
+        length = AES.block_size - (len(s) % AES.block_size)
+        return (s + bytes([length])*length)
+
+    def _unpad(self, r):
+        return r[:-r[-1]]
 
     def encrypt(self, raw):
         raw = self._pad(raw)
@@ -25,12 +31,6 @@ class AESCipher(object):
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
         r = cipher.decrypt(enc[AES.block_size:])
         return self._unpad(r)
-
-    def _pad(self, s):
-        length = AES.block_size - (len(s) % AES.block_size)
-        return (s + bytes([length])*length)
-    def _unpad(self, r):
-        return r[:-r[-1]]
 
     def encrypt_file(self, path):
         f = open(path, "rb")

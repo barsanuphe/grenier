@@ -1,9 +1,7 @@
 #!/usr/env/python
 import os
 import time
-import subprocess
 import sys
-import datetime
 import argparse
 import shutil
 from pathlib import Path
@@ -18,29 +16,26 @@ from grenier.crypto import *
 import yaml
 import xdg.BaseDirectory
 
-
-
-#---CONFIG---------------------------
-CONFIG_FILE =  "grenier.yaml"
+# ---CONFIG---------------------------
+CONFIG_FILE = "grenier.yaml"
 ENCRYPTION_FLAG = ".encrypted"
 
-#---GRENIER---------------------------
 
+# ---GRENIER---------------------------
 class Grenier(object):
     def __init__(self, config_file, toggle_encryption=False):
         self.config_file = config_file
         self.toggle_encryption = toggle_encryption
-        self.config = None
         self.repositories = []
         self.originally_encrypted = False
-        self.encrypted_file_flag = Path(self.config_file.parent, ENCRYPTION_FLAG)
+        self.encrypted_file_flag = Path(self.config_file.parent,
+                                        ENCRYPTION_FLAG)
         self.cipher = None
         self.reencrypted = False
 
-
     def is_config_file_encrypted(self):
-        first_check = (type(yaml.load(open(self.config_file.as_posix(), 'r')))
-                       == str)
+        first_check = (type(yaml.load(open(self.config_file.as_posix(),
+                                           'r'))) == str)
         second_check = Path(self.config_file.parent, ENCRYPTION_FLAG).exists()
         return first_check and second_check
 
@@ -67,7 +62,8 @@ class Grenier(object):
     def encrypt_if_necessary(self):
         if not self.reencrypted:
             # encrypt config if necessary
-            if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
+            if (not self.originally_encrypted and self.toggle_encryption) or \
+               (self.originally_encrypted and not self.toggle_encryption):
                 logger.info("Encrypting config file.")
                 if self.cipher is None:
                     self.cipher = AESCipher()
@@ -78,34 +74,34 @@ class Grenier(object):
     def open_config(self):
         if self.config_file.exists():
             try:
-                self.config = yaml.load(open(self.config_file.as_posix(), 'r'))
-                for p in list(self.config.keys()):
+                config = yaml.load(open(self.config_file.as_posix(), 'r'))
+                for p in list(config.keys()):
                     bp = GrenierRepository(p,
-                                           self.config[p]["backup_dir"],
-                                           self.config[p].get("passphrase", None))
-                    sources_dict = self.config[p]["sources"]
+                                           config[p]["backup_dir"],
+                                           config[p].get("passphrase", None))
+                    sources_dict = config[p]["sources"]
                     for s in list(sources_dict.keys()):
                         bp.add_source(s,
-                                    sources_dict[s]["dir"],
-                                    sources_dict[s].get("excluded", []))
-                    backups_dict = self.config[p]["backups"]
-                    if "googledrive" in list(backups_dict.keys()):
-                        bp.add_google_drive_backend(backups_dict["googledrive"])
-                    if "hubic" in list(backups_dict.keys()):
+                                      sources_dict[s]["dir"],
+                                      sources_dict[s].get("excluded", []))
+                    remotes = config[p]["backups"]
+                    if "googledrive" in list(remotes.keys()):
+                        bp.add_google_drive_backend(remotes["googledrive"])
+                    if "hubic" in list(remotes.keys()):
                         bp.add_hubic_backend()
-                    if "disks" in list(backups_dict.keys()):
-                        bp.add_disks(backups_dict["disks"])
+                    if "disks" in list(remotes.keys()):
+                        bp.add_disks(remotes["disks"])
                     self.repositories.append(bp)
                 self.encrypt_if_necessary()
                 return True
             except Exception as err:
                 print("Invalid configuration file!!")
                 print(err)
-                #raise Exception("Invalid file!")
                 return False
         else:
             print("No configuration file found!")
             return False
+
 
 def main():
     logger.info("\n# # # G R E N I E R # # #\n")
@@ -116,23 +112,24 @@ def main():
     group_config = parser.add_argument_group('Configuration',
                                              'Manage configuration files.')
     group_config.add_argument('--config',
-                               dest='config',
-                               action='store',
-                               metavar="CONFIG_FILE",
-                               nargs=1,
-                               help='Use an alternative configuration file.')
+                              dest='config',
+                              action='store',
+                              metavar="CONFIG_FILE",
+                              nargs=1,
+                              help='Use an alternative configuration file.')
     group_config.add_argument('--encrypt',
-                               dest='encrypt',
-                               action='store_true',
-                               default=False,
-                               help='Toggle encryption on the configuration file.')
+                              dest='encrypt',
+                              action='store_true',
+                              default=False,
+                              help='Toggle encryption on the configuration '
+                                   'file.')
 
     group_projects = parser.add_argument_group('Backups', 'Manage backups.')
     group_projects.add_argument('-n',
                                 '--name',
                                 dest='names',
                                 action='store',
-                                nargs ="+",
+                                nargs="+",
                                 metavar="BACKUP_NAME",
                                 help='specify backup names, or "all".')
     group_projects.add_argument('-b',
@@ -145,7 +142,7 @@ def main():
                                 '--sync',
                                 dest='backup_target',
                                 action='store',
-                                nargs ="+",
+                                nargs="+",
                                 metavar="BACKUP_TARGET_NAME",
                                 help='backup selected projects to the cloud or'
                                      'usb drives, or to "all".')
@@ -186,25 +183,24 @@ def main():
         try:
             assert configuration_file.exists()
         except:
-            print("No configuration file found at %s"%configuration_file)
+            print("No configuration file found at %s" % configuration_file)
             sys.exit(-1)
 
     if args.fuse:
         try:
             assert Path(args.fuse[0]).exists()
             assert len(args.names) == 1
-        except AssertionError as err:
+        except AssertionError:
             print("One project (and one only) must be specified with --name,"
-               " and the mountpoint must be an existing directory.")
+                  " and the mountpoint must be an existing directory.")
             sys.exit(-1)
 
     if args.restore:
         try:
             assert len(args.names) == 1
-        except AssertionError as err:
+        except AssertionError:
             print("One project (and one only) must be specified with --name")
             sys.exit(-1)
-
 
     # This is where stuff actually gets done.
     overall_start = time.time()
@@ -218,22 +214,25 @@ def main():
                 sys.exit(-1)
             for p in g.repositories:
                 if p.name in args.names or args.names == ["all"]:
-                    logger.info("+++ Working on %s +++\n"%p.name)
+                    logger.info("+++ Working on %s +++\n" % p.name)
                     logger.debug(p)
                     if args.check:
                         p.check_and_repair()
                     if args.backup:
                         p.backup()
                     if args.backup_target:
-                        if "google" in args.backup_target or args.backup_target == ["all"]:
+                        if "google" in args.backup_target or \
+                           args.backup_target == ["all"]:
                             p.save_to_google_drive()
-                        if "hubic" in args.backup_target or args.backup_target == ["all"]:
+                        if "hubic" in args.backup_target or \
+                           args.backup_target == ["all"]:
                             p.save_to_hubic()
                         # finding what drives to back up
                         if args.backup_target == ["all"]:
                             drives_to_backup = p.backup_disks
                         else:
-                            drives_to_backup = [d for d in args.backup_target if d in p.backup_disks]
+                            drives_to_backup = [d for d in args.backup_target
+                                                if d in p.backup_disks]
                         for drive in drives_to_backup:
                             p.save_to_disk(drive)
                     if args.fuse:
@@ -243,9 +242,6 @@ def main():
                             p.fuse(args.fuse[0])
                     if args.restore:
                         p.restore(args.restore[0])
-
-                    # p.save_to_folder("/home/barsanuphe/aubergine/sauvegarde/test/")
-                    # p.restore_from_google_drive("/home/barsanuphe/aubergine/sauvegarde/test/")
 
         overall_time = time.time() - overall_start
         logger.info("\n+ Everything was done in %.2fs." % overall_time)

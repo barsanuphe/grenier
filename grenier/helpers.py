@@ -6,7 +6,7 @@ import notify2
 import yaml
 
 from grenier.logger import *
-from grenier.checks import *
+
 
 def duplicity_command(cmd, passphrase):
     logger.debug(cmd)
@@ -15,17 +15,17 @@ def duplicity_command(cmd, passphrase):
     else:
         env_dict = {}
     p = subprocess.Popen(["duplicity", "-v8"] + cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        bufsize=1,
-                        env=env_dict)
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         bufsize=1,
+                         env=env_dict)
     cpt = 0
     for line in iter(p.stdout.readline, b''):
         line = line.decode("utf8").rstrip()
         logger.debug(line)
         if line.startswith("Processed"):
             print(".", end="", flush=True)
-            logger.debug("Processed file %s"%cpt)
+            logger.debug("Processed file %s" % cpt)
             cpt += 1
     for line in iter(p.stderr.readline, b''):
         line = line.decode("utf8").rstrip()
@@ -35,6 +35,7 @@ def duplicity_command(cmd, passphrase):
     p.communicate()
     print(".", flush=True)
 
+
 def attic_command(cmd, passphrase, quiet=False):
     logger.debug(cmd)
     if passphrase:
@@ -42,10 +43,10 @@ def attic_command(cmd, passphrase, quiet=False):
     else:
         env_dict = {}
     p = subprocess.Popen(["attic"] + cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        bufsize=1,
-                        env=env_dict)
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         bufsize=1,
+                         env=env_dict)
     output = []
     for line in iter(p.stdout.readline, b''):
         if not quiet:
@@ -58,16 +59,18 @@ def attic_command(cmd, passphrase, quiet=False):
     p.communicate()
     return output
 
+
 def rsync_command(cmd, quiet=False):
     logger.debug(cmd)
-    p = subprocess.Popen(["rsync", "-a", "--delete","--human-readable",
+    p = subprocess.Popen(["rsync", "-a", "--delete", "--human-readable",
                           "--info=progress2", "--force"] + cmd,
-                        stderr=subprocess.PIPE,
-                        bufsize=1)
+                         stderr=subprocess.PIPE,
+                         bufsize=1)
     for line in iter(p.stderr.readline, b''):
         if not quiet:
             logger.warning("\t !!! " + line.decode("utf8").rstrip())
     p.communicate()
+
 
 def create_or_check_if_empty(target):
     t = Path(target)
@@ -76,6 +79,7 @@ def create_or_check_if_empty(target):
         return True
     else:
         return (list(t.glob('*')) == [])
+
 
 def list_fuse_mounts():
     p = subprocess.Popen(["mount"],
@@ -89,10 +93,12 @@ def list_fuse_mounts():
             mounts.append(line.split(" ")[2])
     return mounts
 
+
 def is_fuse_mounted(directory):
     if directory.endswith("/"):
         directory = directory[:-1]
     return directory in list_fuse_mounts()
+
 
 def notify_this(text):
     notify2.init("grenier")
@@ -101,6 +107,7 @@ def notify_this(text):
                              "drive-removable-media")
     n.set_timeout(2000)
     n.show()
+
 
 def update_or_create_sync_file(path, backup_name):
     if not path.exists():
