@@ -103,9 +103,10 @@ the right thing and switch to Archlinux, or you can launch with
 The following commands assume the configuration file is as
 [described here](#grenieryaml-example).
 
-This creates a timestamped archive of `documents` (something like
-`2015-04-09_22h48_documents`) in the repository described in the configuration
-file. If the repository does not exist, it will be created.
+This creates timestamped archives of all sources for the `documents` repository
+(something like `2015-04-09_22h48_work` and `2015-04-09_22h53_notes`), as
+described in the configuration file. If the repository does not exist, it will
+be created.
 
     grenier -n documents -b
 
@@ -146,7 +147,8 @@ Restoring the latest version of the `documents` repository to a directory:
 
 How about restoring files from copies/the cloud you say?
 That will never happen. Or maybe just once. You don't need a wrapper for this.
-Just use `attic` and/or `duplicity` directly.
+Just use `attic` and/or `duplicity` directly. Chances are if that happens you
+will not mind checking out their man pages.
 
 ### Configuration
 
