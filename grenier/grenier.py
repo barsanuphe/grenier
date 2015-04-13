@@ -11,7 +11,7 @@ from pathlib import Path
 # grenier modules
 from grenier.checks import *
 from grenier.logger import *
-from grenier.grenierrepo import *
+from grenier.repository import *
 from grenier.crypto import *
 
 # 3rd party modules
@@ -79,9 +79,9 @@ class Grenier(object):
             try:
                 self.config = yaml.load(open(self.config_file.as_posix(), 'r'))
                 for p in list(self.config.keys()):
-                    bp = GrenierGrenier(p,
-                                        self.config[p]["backup_dir"],
-                                        self.config[p].get("passphrase", None))
+                    bp = GrenierRepository(p,
+                                           self.config[p]["backup_dir"],
+                                           self.config[p].get("passphrase", None))
                     sources_dict = self.config[p]["sources"]
                     for s in list(sources_dict.keys()):
                         bp.add_source(s,

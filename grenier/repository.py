@@ -20,7 +20,7 @@ class GrenierSource(object):
         self.excluded_extensions = format_list
 
 
-class GrenierRepo(object):
+class GrenierRepository(object):
     def __init__(self, name, backup_dir, passphrase=None):
         self.name = name
         self.backup_dir = Path(backup_dir)
@@ -166,40 +166,6 @@ class GrenierRepo(object):
         for d in self.backup_disks:
             txt += "\t\tDisk (%s)\n"%d
         return txt
-
-class GrenierBup(GrenierRepo):
-    def __init__(self, name, backup_dir):
-        super().__init__(name, backup_dir)
-        self.bup = "bup -d %s"%self.backup_dir
-
-    def do_init(self):
-        os.system("%s init"%self.bup)
-
-    def do_save(self, source):
-        logger.info("+ Indexing source directory %s."%source.target_dir)
-        if source.excluded_extensions != []:
-            os.system('%s index %s --exclude-rx="^.*\.(%s)$"'%(self.bup, source.target_dir, "|".join(source.excluded_extensions)))
-        else:
-            os.system('%s index %s'%(self.bup, source.target_dir))
-        logger.info("+ Saving source directory %s to %s."%(source.target_dir, self.backup_dir))
-        os.system('%s save %s -n %s --strip-path=%s -9'%(self.bup, source.target_dir, source.name, source.target_dir))
-        logger.info("+ Generating par2 files for repository.")
-        os.system("%s fsck -g -j9"%self.bup)
-
-    def do_check(self):
-        os.system("%s fsck -r -j9"%self.bup)
-
-    def do_restore(self, source, target):
-        os.system("%s restore -C %s /%s/latest/." % (self.bup, target, source.name))
-
-    def do_fuse(self, folder):
-        os.system("%s fuse %s"%(self.bup, folder))
-
-
-class GrenierGrenier(GrenierRepo):
-
-    def __init__(self, name, backup_dir, passphrase):
-        super().__init__(name, backup_dir, passphrase)
 
     def do_init(self):
         #TODO mettre les bonnes options

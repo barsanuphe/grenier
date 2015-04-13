@@ -11,6 +11,8 @@ using a configuration file to manage repositories.
 external drives or to [google drive](https://www.google.com/drive/) and
 [hubic](https://hubic.com).
 
+Please note this is not stable yet, ie: **You may lose data.**
+
 ## Table of Contents
 
 - [Requirements](#requirements)
@@ -95,7 +97,42 @@ Note: if python2 is the default version on your Linux distribution, launch with
 
 ### Example commands
 
-*todo*
+The following commands assume the configuration file is as
+[described here](#grenieryaml-example).
+
+This creates a timestamped archive of `documents` (something like
+`2015-04-09_22h48_documents`) in the repository described in the configuration
+file. If the repository does not exist, it will be created.
+
+    grenier -n documents -b
+
+This copies the `documents` repository to the external hard drive `disk1`. The
+hard drive is assumed to be mounted on `/run/media/user/disk1`.
+
+    grenier -n documents -s disk1
+
+This does the same things, but for all repositories having `disk1` as backup
+drive:
+
+    grenier -n all -s disk1
+
+This sends `documents` to both google drive and hubic:
+
+    grenier -n documents -s google hubic
+
+This sends `documents` to all defined and available backup remotes (`disk1`,
+google drive, hubic):
+
+    grenier -n documents -s all
+
+This checks the `documents` repository for errors:
+
+    grenier -n documents -c
+
+This mounts the `documents` repository in a directory:
+
+    grenier -n documents -f /mnt/repo
+
 
 ### Configuration
 
