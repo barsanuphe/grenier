@@ -52,7 +52,9 @@ To uninstall (not sure why one would want to do such a thing), run:
     $ sudo pip uninstall grenier
 
 The configuration file *grenier.yaml* is expected to be in
-`$XDG_CONFIG_HOME/grenier/`.
+`$XDG_CONFIG_HOME/grenier/`. You might want to `ln -s` your actual configuration
+file there, because let's face it, `$XDG_CONFIG_HOME` is a sad and lonely place
+you never visit.
 
 Logs are in `$XDG_DATA_HOME/grenier/logs`.
 

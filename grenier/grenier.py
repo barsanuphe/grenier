@@ -102,6 +102,24 @@ class Grenier(object):
             print("No configuration file found!")
             return False
 
+    def export_last_sync(self):
+        data_path = xdg.BaseDirectory.save_data_path("grenier")
+        path = Path(data_path, "last_synced.yml")
+        if path.exists():
+            last_synced = yaml.load(open(path.as_posix(), 'r'))
+        else:
+            last_synced = {}
+
+        for r in self.repositories:
+            if r.just_synced != []:
+                if r.name not in list(last_synced.keys()):
+                    last_synced[r.name] = {}
+                for sync in r.just_synced:
+                    last_synced[r.name].update(sync)
+        yaml.dump(last_synced,
+                open(path.as_posix(), 'w'),
+                default_flow_style=False)
+
 
 def main():
     logger.info("\n# # # G R E N I E R # # #\n")
@@ -235,6 +253,7 @@ def main():
                                                 if d in p.backup_disks]
                         for drive in drives_to_backup:
                             p.save_to_disk(drive)
+                        g.export_last_sync()
                     if args.fuse:
                         if is_fuse_mounted(args.fuse[0]):
                             p.unfuse(args.fuse[0])

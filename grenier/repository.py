@@ -4,6 +4,7 @@ import sys
 import re
 import getpass
 from pathlib import Path
+import xdg.BaseDirectory
 
 from grenier.logger import *
 from grenier.helpers import *
@@ -29,6 +30,7 @@ class GrenierRepository(object):
         self.hubic_credentials = None
         self.backup_disks = []
         self.passphrase = passphrase
+        self.just_synced = []
 
     def add_source(self, name, target_dir, excluded=[]):
         self.sources.append(GrenierSource(name, target_dir, excluded))
@@ -93,6 +95,7 @@ class GrenierRepository(object):
                                "gdocs://%s/grenier/%s" % (self.google_address,
                                                           self.name)],
                               self.passphrase)
+            self.just_synced.append({"google": time.strftime("%Y-%m-%d_%Hh%M")})
             logger.info("+ Synced in %.2fs." % (time.time() - start))
 
     def restore_from_google_drive(self, target):
@@ -118,6 +121,7 @@ class GrenierRepository(object):
             duplicity_command([self.backup_dir.as_posix(),
                                "cf+hubic://%s" % self.name],
                               self.passphrase)
+            self.just_synced.append({"hubic": time.strftime("%Y-%m-%d_%Hh%M")})
             logger.info("+ Synced in %.2fs." % (time.time() - start))
 
     def restore_from_hubic(self, target):
@@ -140,21 +144,25 @@ class GrenierRepository(object):
             if not mount_point.exists():
                 logger.error("!! Drive %s is not mounted." % disk_name)
             else:
-                self.save_to_folder(mount_point)
+                if self.save_to_folder(mount_point):
+                    self.just_synced.append({disk_name: time.strftime("%Y-%m-%d_%Hh%M")})
 
     def save_to_folder(self, target):
         path = Path(target)
         if not path.is_absolute():
             logger.error("Directory %s is not an absolute path,"
                          "nothing will be done." % path)
+            return False
         else:
             logger.info("+ Syncing with %s." % path)
             if not path.exists():
                 path.mkdir(parents=True)
-
+            start = time.time()
             rsync_command([self.backup_dir.as_posix(), path.as_posix()])
             update_or_create_sync_file(Path(path, "last_synced.yaml"),
                                        self.name)
+            logger.info("+ Synced in %.2fs." % (time.time() - start))
+            return True
 
     def restore_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
@@ -185,7 +193,7 @@ class GrenierRepository(object):
         return txt
 
     def do_init(self):
-        # TODO mettre les bonnes options
+        # TODO add options when/if merge-all becomes official
         attic_command(["init", self.backup_dir.as_posix(),
                        "--encryption=passphrase"],
                       self.passphrase)
@@ -205,7 +213,6 @@ class GrenierRepository(object):
                       self.passphrase)
 
     def do_check(self):
-        # TODO repair is experimental?  "--repair",--repository-only",
         attic_command(["check", "-v", self.backup_dir.as_posix()],
                       self.passphrase)
 
