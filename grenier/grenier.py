@@ -35,6 +35,7 @@ class Grenier(object):
         self.originally_encrypted = False
         self.encrypted_file_flag = Path(self.config_file.parent, ENCRYPTION_FLAG)
         self.config_encryption_passphrase = None
+        self.reencrypted = False
 
 
     def is_config_file_encrypted(self):
@@ -62,17 +63,19 @@ class Grenier(object):
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
             print("\nGot interrupted. Trying to clean up.")
-            #print(exc_type)
-            #print(exc_value)
-            #print(traceback)
-        # encrypt config if necessary
-        if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
-            logger.info("Encrypting config file.")
-            if self.config_encryption_passphrase is None:
-                self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
-            encrypt_file(self.config_file.as_posix(),
-                         self.config_encryption_passphrase)
-            open(self.encrypted_file_flag.as_posix(), 'a').close()
+            self.encrypt_if_necessary()
+
+    def encrypt_if_necessary(self):
+        if not self.reencrypted:
+            # encrypt config if necessary
+            if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
+                logger.info("Encrypting config file.")
+                if self.config_encryption_passphrase is None:
+                    self.config_encryption_passphrase = getpass.getpass("Configuration passphrase:")
+                encrypt_file(self.config_file.as_posix(),
+                            self.config_encryption_passphrase)
+                open(self.encrypted_file_flag.as_posix(), 'a').close()
+                self.reencrypted = True
 
     def open_config(self):
         if self.config_file.exists():
@@ -95,6 +98,7 @@ class Grenier(object):
                     if "disks" in list(backups_dict.keys()):
                         bp.add_disks(backups_dict["disks"])
                     self.repositories.append(bp)
+                self.encrypt_if_necessary()
                 return True
             except Exception as err:
                 print("Invalid configuration file!!")
