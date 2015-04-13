@@ -128,6 +128,10 @@ google drive, hubic):
 
     grenier -n documents -s all
 
+This predictably does pretty much everything:
+
+    grenier -n all -s all
+
 This checks the `documents` repository for errors:
 
     grenier -n documents -c
@@ -136,6 +140,13 @@ This mounts the `documents` repository in a directory:
 
     grenier -n documents -f /mnt/repo
 
+Restoring the latest version of the `documents` repository to a directory:
+
+    grenier -n documents -r /home/user/hope_this_works/
+
+How about restoring files from copies/the cloud you say?
+That will never happen. Or maybe just once. You don't need a wrapper for this.
+Just use `attic` and/or `duplicity` directly.
 
 ### Configuration
 
