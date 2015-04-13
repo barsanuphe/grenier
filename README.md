@@ -1,17 +1,19 @@
 # Grenier
 
-
 ## What it is
 
 **Grenier** is a python3 wrapper around [attic](https://github.com/jborg/attic),
 [rsync](https://rsync.samba.org/) and [duplicity](http://duplicity.nongnu.org/),
 using a configuration file to manage repositories.
 
-**Grenier** create new archives in these repositories, and also copy them to
+**Grenier** can create new archives in these repositories, and also copy them to
 external drives or to [google drive](https://www.google.com/drive/) and
 [hubic](https://hubic.com).
 
-Please note this is not stable yet, ie: **You may lose data.**
+It can do other things too, probably. You'll just have to read on.
+
+Please note this is not stable yet, as in: **You may lose data.** To be honest
+(something I generally avoid): you probably will.
 
 ## Table of Contents
 
@@ -33,7 +35,7 @@ Current requirements:
 - python-crypto
 - python2-pyrax (hubic backend for duplicity)
 
-External dependancies:
+External binaries required:
 - [attic](https://github.com/jborg/attic)
 - [duplicity](http://duplicity.nongnu.org/) (for google drive and hubic backup)
 - [rsync](https://rsync.samba.org/) (for external drives backup)
@@ -45,7 +47,7 @@ After cloning this repository, run:
 
     $ sudo python setup.py install
 
-To uninstall, run:
+To uninstall (not sure why one would want to do such a thing), run:
 
     $ sudo pip uninstall grenier
 
@@ -56,7 +58,8 @@ Logs are in `$XDG_DATA_HOME/grenier/logs`.
 
 ### Usage
 
-Note: if python2 is the default version on your Linux distribution, launch with
+*Note*: if python2 is the default version on your Linux distribution, you can do
+the right thing and switch to Archlinux, or you can launch with
 `python3 grenier.py`.
 
 
@@ -136,16 +139,20 @@ This mounts the `documents` repository in a directory:
 
 ### Configuration
 
-**Grenier** uses a yaml file to describe repositories, what to back up in each,
-and sensitive information such as passphrases or passwords to keep things
-simple.
+**Grenier** uses a yaml file to describe
+- repositories,
+- what to back up in each,
+- where to keep extra copies
+- sensitive information such as passphrases or passwords, to keep things simple.
 
-The user is responsible for keeping this file safe.
+**The user is responsible for keeping this file safe**.
 
 Optionnally, **Grenier** can encrypt this configuration file, decrypting it only
-when needed (use `--encrypt` to toggle between encrypted and plaintext).
+when needed (use `--encrypt` to toggle between encrypted and plaintext modes).
+*Just don't type in your passphrase wrong*, or things might go so very wrong.
+That's why **the user is responsible for keeping this file safe**.
 
-Here is the general structure of how to describe a repository for grenier:
+Here is the general structure of how to describe a repository for **grenier**:
 
     repository_name:
         backup_dir: /path/to/repository
