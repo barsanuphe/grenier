@@ -8,17 +8,20 @@ import argparse
 import shutil
 from pathlib import Path
 
-# CHECKS
-from checks import *
-from logger import *
-from grenierrepo import *
-from crypto import *
+# grenier modules
+from grenier.checks import *
+from grenier.logger import *
+from grenier.grenierrepo import *
+from grenier.crypto import *
+
+# 3rd party modules
+import yaml
+import xdg.BaseDirectory
+
+
 
 #---CONFIG---------------------------
-
-# config is located next to this script
-script_dir = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = Path(script_dir, "grenier.yaml")
+CONFIG_FILE =  "grenier.yaml"
 ENCRYPTION_FLAG = ".encrypted"
 
 #---GRENIER---------------------------
@@ -58,9 +61,10 @@ class Grenier(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
-            print(exc_type)
-            print(exc_value)
-            print(traceback)
+            print("\nGot interrupted. Trying to clean up.")
+            #print(exc_type)
+            #print(exc_value)
+            #print(traceback)
         # encrypt config if necessary
         if (not self.originally_encrypted and self.toggle_encryption) or (self.originally_encrypted and not self.toggle_encryption):
             logger.info("Encrypting config file.")
@@ -94,13 +98,14 @@ class Grenier(object):
                 return True
             except Exception as err:
                 print("Invalid configuration file!!")
+                print(err)
                 #raise Exception("Invalid file!")
                 return False
         else:
             print("No configuration file found!")
             return False
 
-if __name__ == "__main__":
+def main():
     logger.info("\n# # # G R E N I E R # # #\n")
 
     parser = argparse.ArgumentParser(description='Grenier.\nA wrapper around '
@@ -174,7 +179,13 @@ if __name__ == "__main__":
     if args.config and Path(args.config[0]).exists():
         configuration_file = args.config[0]
     else:
-        configuration_file = CONFIG_FILE
+        config_path = xdg.BaseDirectory.save_config_path("grenier")
+        configuration_file = Path(config_path, CONFIG_FILE)
+        try:
+            assert configuration_file.exists()
+        except:
+            print("No configuration file found at %s"%configuration_file)
+            sys.exit(-1)
 
     if args.fuse:
         try:
@@ -192,46 +203,56 @@ if __name__ == "__main__":
             print("One project (and one only) must be specified with --name")
             sys.exit(-1)
 
+
     # This is where stuff actually gets done.
     overall_start = time.time()
-    with Grenier(configuration_file, args.encrypt) as g:
-        if not g.open_config():
-            print("Invalid configuration. Exiting.")
-            if g.originally_encrypted:
-                print("Bad encryption passphrase maybe? Manually restore the backup.")
-            sys.exit(-1)
-        for p in g.repositories:
-            if p.name in args.names or args.names == ["all"]:
-                logger.info("+++ Working on %s +++\n"%p.name)
-                logger.debug(p)
-                if args.check:
-                    p.check_and_repair()
-                if args.backup:
-                    p.backup()
-                if args.backup_target:
-                    if "google" in args.backup_target or args.backup_target == ["all"]:
-                        p.save_to_google_drive()
-                    if "hubic" in args.backup_target or args.backup_target == ["all"]:
-                        p.save_to_hubic()
-                    # finding what drives to back up
-                    if args.backup_target == ["all"]:
-                        drives_to_backup = p.backup_disks
-                    else:
-                        drives_to_backup = [d for d in args.backup_target if d in p.backup_disks]
-                    for drive in drives_to_backup:
-                        p.save_to_disk(drive)
-                if args.fuse:
-                    if is_fuse_mounted(args.fuse[0]):
-                        p.unfuse(args.fuse[0])
-                    else:
-                        p.fuse(args.fuse[0])
-                if args.restore:
-                    p.restore(args.restore[0])
+    try:
+        with Grenier(configuration_file, args.encrypt) as g:
+            if not g.open_config():
+                print("Invalid configuration. Exiting.")
+                if g.originally_encrypted:
+                    print("Bad encryption passphrase maybe?"
+                          "Manually restore the backup.")
+                sys.exit(-1)
+            for p in g.repositories:
+                if p.name in args.names or args.names == ["all"]:
+                    logger.info("+++ Working on %s +++\n"%p.name)
+                    logger.debug(p)
+                    if args.check:
+                        p.check_and_repair()
+                    if args.backup:
+                        p.backup()
+                    if args.backup_target:
+                        if "google" in args.backup_target or args.backup_target == ["all"]:
+                            p.save_to_google_drive()
+                        if "hubic" in args.backup_target or args.backup_target == ["all"]:
+                            p.save_to_hubic()
+                        # finding what drives to back up
+                        if args.backup_target == ["all"]:
+                            drives_to_backup = p.backup_disks
+                        else:
+                            drives_to_backup = [d for d in args.backup_target if d in p.backup_disks]
+                        for drive in drives_to_backup:
+                            p.save_to_disk(drive)
+                    if args.fuse:
+                        if is_fuse_mounted(args.fuse[0]):
+                            p.unfuse(args.fuse[0])
+                        else:
+                            p.fuse(args.fuse[0])
+                    if args.restore:
+                        p.restore(args.restore[0])
 
-                # p.save_to_folder("/home/barsanuphe/aubergine/sauvegarde/test/")
-                # p.restore_from_google_drive("/home/barsanuphe/aubergine/sauvegarde/test/")
+                    # p.save_to_folder("/home/barsanuphe/aubergine/sauvegarde/test/")
+                    # p.restore_from_google_drive("/home/barsanuphe/aubergine/sauvegarde/test/")
 
-    overall_time = time.time() - overall_start
-    logger.info("\n+ Everything was done in %.2fs." % overall_time)
-    notify_this("Everything was done in %.2fs." % overall_time)
+        overall_time = time.time() - overall_start
+        logger.info("\n+ Everything was done in %.2fs." % overall_time)
+        notify_this("Everything was done in %.2fs." % overall_time)
 
+    except KeyboardInterrupt:
+        overall_time = time.time() - overall_start
+        logger.error("\n+ Got interrupted after %.2fs." % overall_time)
+        sys.exit()
+
+if __name__ == "__main__":
+    main()

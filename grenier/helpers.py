@@ -1,10 +1,11 @@
 import subprocess
 import time
 from pathlib import Path
+
 import notify2
 
-from logger import *
-from checks import *
+from grenier.logger import *
+from grenier.checks import *
 
 def duplicity_command(cmd, passphrase):
     logger.debug(cmd)
@@ -22,7 +23,8 @@ def duplicity_command(cmd, passphrase):
         line = line.decode("utf8").rstrip()
         logger.debug(line)
         if line.startswith("Processed"):
-            logger.info("Processed file %s"%cpt)
+            print(".", end="", flush=True)
+            logger.debug("Processed file %s"%cpt)
             cpt += 1
     for line in iter(p.stderr.readline, b''):
         line = line.decode("utf8").rstrip()
@@ -30,6 +32,7 @@ def duplicity_command(cmd, passphrase):
         if "warning" not in line.lower():
             logger.warning("\t !!! " + line)
     p.communicate()
+    print(".", flush=True)
 
 def attic_command(cmd, passphrase, quiet=False):
     logger.debug(cmd)
@@ -45,7 +48,7 @@ def attic_command(cmd, passphrase, quiet=False):
     output = []
     for line in iter(p.stdout.readline, b''):
         if not quiet:
-            logger.info(line.decode("utf8").rstrip())
+            logger.info("\t"+line.decode("utf8").rstrip())
         output.append(line.decode("utf8").rstrip())
     for line in iter(p.stderr.readline, b''):
         if not quiet:
@@ -62,7 +65,7 @@ def rsync_command(cmd, quiet=False):
                         bufsize=1)
     for line in iter(p.stdout.readline, b''):
         if not quiet:
-            logger.info(line.decode("utf8").rstrip())
+            logger.info("\t"+line.decode("utf8").rstrip())
     for line in iter(p.stderr.readline, b''):
         if not quiet:
             logger.warning("\t !!! " + line.decode("utf8").rstrip())

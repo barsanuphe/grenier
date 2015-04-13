@@ -9,8 +9,8 @@ import os
 from Crypto import Random
 from Crypto.Cipher import AES
 
-from logger import *
-from helpers import *
+from grenier.logger import *
+from grenier.helpers import *
 
 class AESCipher(object):
     def __init__(self, key):

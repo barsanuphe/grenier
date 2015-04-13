@@ -1,10 +1,15 @@
-import os, time, subprocess, sys, datetime, argparse, re, getpass
+import os
+import time
+import subprocess
+import sys
+import datetime
+import argparse
+import re
+import getpass
 from pathlib import Path
 
-from attic.archiver import Archiver
-
-from logger import *
-from helpers import *
+from grenier.logger import *
+from grenier.helpers import *
 
 class GrenierSource(object):
     def __init__(self, name, target_dir, format_list=[]):
@@ -193,7 +198,6 @@ class GrenierGrenier(GrenierRepo):
 
     def __init__(self, name, backup_dir, passphrase):
         super().__init__(name, backup_dir, passphrase)
-        self.attic = Archiver()
 
     def do_init(self):
         #TODO mettre les bonnes options
@@ -208,8 +212,8 @@ class GrenierGrenier(GrenierRepo):
         attic_command(["create", '--do-not-cross-mountpoints', "--stats", "%s::%s_%s"%(self.backup_dir, time.strftime("%Y-%m-%d_%Hh%M"), source.name), source.target_dir] + excluded, self.passphrase)
 
     def do_check(self):
-        #TODO repair is experimental?  "--repair",
-        attic_command(["check", "-v", "--repository-only", self.backup_dir.as_posix()], self.passphrase)
+        #TODO repair is experimental?  "--repair",--repository-only",
+        attic_command(["check", "-v", self.backup_dir.as_posix()], self.passphrase)
 
     def do_restore(self, source, target):
         origin = os.getcwd()
