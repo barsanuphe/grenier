@@ -84,7 +84,7 @@ class Grenier(object):
                         bp.add_source(s,
                                       sources_dict[s]["dir"],
                                       sources_dict[s].get("excluded", []))
-                    remotes = config[p]["backups"]
+                    remotes = config[p].get("backups", {})
                     if "googledrive" in list(remotes.keys()):
                         bp.add_google_drive_backend(remotes["googledrive"])
                     if "hubic" in list(remotes.keys()):
@@ -176,7 +176,7 @@ def main():
                                 nargs="+",
                                 metavar="BACKUP_TARGET_NAME",
                                 help='backup selected projects to the cloud or'
-                                     'usb drives, or to "all".')
+                                     ' usb drives, or to "all".')
     group_projects.add_argument('-c',
                                 '--check',
                                 dest='check',

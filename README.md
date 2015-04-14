@@ -94,7 +94,7 @@ the right thing and switch to Archlinux, or you can launch with
                             specify backup names, or "all".
     -b, --backup          backup selected projects.
     -s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...], --sync BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]
-                            backup selected projects to the cloud orusb drives, or
+                            backup selected projects to the cloud or usb drives, or
                             to "all".
     -c, --check           check and repair selected backups.
     -f MOUNT_POINT, --fuse MOUNT_POINT
