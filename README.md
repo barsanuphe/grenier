@@ -62,16 +62,12 @@ the cloud (see `--last-synced`).
 
 ### Usage
 
-*Note*: if python2 is the default version on your Linux distribution, you can do
-the right thing and switch to Archlinux, or you can launch with
-`python3 grenier.py`.
 
-
-    $ python grenier.py -h
+    $ grenier -h
 
     # # # G R E N I E R # # #
 
-    usage: grenier [-h] [--config CONFIG_FILE] [--encrypt]
+    usage: grenier [-h] [--config CONFIG_FILE] [--encrypt] [-l]
                 [-n BACKUP_NAME [BACKUP_NAME ...]] [-b]
                 [-s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]] [-c]
                 [-f MOUNT_POINT] [-r RESTORE_DIRECTORY] [--last-synced]
@@ -86,22 +82,24 @@ the right thing and switch to Archlinux, or you can launch with
 
     --config CONFIG_FILE  Use an alternative configuration file.
     --encrypt             Toggle encryption on the configuration file.
+    -l, --list            List defined repositories.
 
-    Backups:
-    Manage backups.
+    repositories:
+    Manage repositories.
 
     -n BACKUP_NAME [BACKUP_NAME ...], --name BACKUP_NAME [BACKUP_NAME ...]
                             specify backup names, or "all".
-    -b, --backup          backup selected projects.
+    -b, --backup          backup selected repositories.
     -s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...], --sync BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]
-                            backup selected projects to the cloud or usb drives, or
-                            to "all".
-    -c, --check           check and repair selected backups.
+                            backup selected repositories to the cloud or usb
+                            drives, or to "all".
+    -c, --check           check and repair selected repositories.
     -f MOUNT_POINT, --fuse MOUNT_POINT
-                            Mount/unmount a specified backup to a mountpoint.
+                            Mount/unmount a specified repository to a mountpoint.
     -r RESTORE_DIRECTORY, --restore RESTORE_DIRECTORY
                             Restore latest to this directory.
     --last-synced         list when you last backed up repositories.
+
 
 
 ### Example commands

@@ -176,20 +176,24 @@ class GrenierRepository(object):
             duplicity_command([Path(folder).as_uri(), target], self.passphrase)
 
     def __str__(self):
-        txt = "++ Project %s\n" % self.name
+        txt = "++ Repository %s\n" % self.name
         txt += "\tBup Dir: %s\n" % self.backup_dir
         txt += "\tSources:\n"
         for source in self.sources:
-            txt += "\t\t%s (%s) [exluded: %s]\n" % (source.name,
+            if source.excluded_extensions != []:
+                txt += "\t\t%s (%s) [exluded: %s]\n" % (source.name,
                                                     source.target_dir,
                                                     source.excluded_extensions)
+            else:
+                txt += "\t\t%s (%s)\n" % (source.name,
+                                          source.target_dir)
         txt += "\tBackups:\n"
         if self.has_valid_google_address:
-            txt += "\t\tGoogle Drive (%s)\n" % (self.google_address)
+            txt += "\t\tGoogle Drive\n"
         if self.hubic_credentials is not None:
             txt += "\t\tHubic\n"
-        for d in self.backup_disks:
-            txt += "\t\tDisk (%s)\n" % d
+        if self.backup_disks != []:
+            txt += "\t\tDisks: %s" % (" ".join(self.backup_disks))
         return txt
 
     def do_init(self):

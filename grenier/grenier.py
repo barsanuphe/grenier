@@ -154,8 +154,14 @@ def main():
                               default=False,
                               help='Toggle encryption on the configuration '
                                    'file.')
+    group_config.add_argument('-l',
+                                '--list',
+                                dest='list_repositories',
+                                action='store_true',
+                                default=False,
+                                help='List defined repositories.')
 
-    group_projects = parser.add_argument_group('Backups', 'Manage backups.')
+    group_projects = parser.add_argument_group('repositories', 'Manage repositories.')
     group_projects.add_argument('-n',
                                 '--name',
                                 dest='names',
@@ -168,28 +174,28 @@ def main():
                                 dest='backup',
                                 action='store_true',
                                 default=False,
-                                help='backup selected projects.')
+                                help='backup selected repositories.')
     group_projects.add_argument('-s',
                                 '--sync',
                                 dest='backup_target',
                                 action='store',
                                 nargs="+",
                                 metavar="BACKUP_TARGET_NAME",
-                                help='backup selected projects to the cloud or'
-                                     ' usb drives, or to "all".')
+                                help='backup selected repositories to the cloud'
+                                     ' or usb drives, or to "all".')
     group_projects.add_argument('-c',
                                 '--check',
                                 dest='check',
                                 action='store_true',
                                 default=False,
-                                help='check and repair selected backups.')
+                                help='check and repair selected repositories.')
     group_projects.add_argument('-f',
                                 '--fuse',
                                 dest='fuse',
                                 action='store',
                                 metavar="MOUNT_POINT",
                                 nargs=1,
-                                help='Mount/unmount a specified backup '
+                                help='Mount/unmount a specified repository '
                                      'to a mountpoint.')
     group_projects.add_argument('-r',
                                 '--restore',
@@ -206,7 +212,7 @@ def main():
     args = parser.parse_args()
     logger.debug(args)
 
-    if args.names is None and args.last_synced is False and args.encrypt is False:
+    if args.names is None and args.last_synced is False and args.encrypt is False and args.list_repositories is False:
         print("No project selected. Nothing can be done.")
         sys.exit(-1)
 
@@ -248,9 +254,12 @@ def main():
                           "Manually restore the backup.")
                 sys.exit(-1)
             for p in g.repositories:
+                if args.list_repositories:
+                    print(p)
                 if args.names is not None and p.name in args.names or args.names == ["all"]:
                     logger.info("+++ Working on %s +++\n" % p.name)
                     logger.debug(p)
+
                     if args.check:
                         p.check_and_repair()
                     if args.backup:
