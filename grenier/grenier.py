@@ -75,21 +75,21 @@ class Grenier(object):
         if self.config_file.exists():
             try:
                 config = yaml.load(open(self.config_file.as_posix(), 'r'))
-                for p in list(config.keys()):
+                for p in config:
                     bp = GrenierRepository(p,
                                            config[p]["backup_dir"],
                                            config[p].get("passphrase", None))
                     sources_dict = config[p]["sources"]
-                    for s in list(sources_dict.keys()):
+                    for s in sources_dict:
                         bp.add_source(s,
                                       sources_dict[s]["dir"],
                                       sources_dict[s].get("excluded", []))
                     remotes = config[p].get("backups", {})
-                    if "googledrive" in list(remotes.keys()):
+                    if "googledrive" in remotes:
                         bp.add_google_drive_backend(remotes["googledrive"])
-                    if "hubic" in list(remotes.keys()):
+                    if "hubic" in remotes:
                         bp.add_hubic_backend()
-                    if "disks" in list(remotes.keys()):
+                    if "disks" in remotes:
                         bp.add_disks(remotes["disks"])
                     self.repositories.append(bp)
                 self.encrypt_if_necessary()
@@ -112,7 +112,7 @@ class Grenier(object):
 
         for r in self.repositories:
             if r.just_synced != []:
-                if r.name not in list(last_synced.keys()):
+                if r.name not in last_synced:
                     last_synced[r.name] = {}
                 for sync in r.just_synced:
                     last_synced[r.name].update(sync)
@@ -128,10 +128,10 @@ class Grenier(object):
         else:
             last_synced = {}
 
-        for r in list(last_synced.keys()):
+        for r in last_synced:
             logger.info("%s:" % r)
-            for dest in list(last_synced[r].keys()):
-                logger.info("\t%s: %s" % (dest, last_synced[r][dest]))
+            for dest in last_synced[r]:
+                logger.info("\t%s:\n\t\t%s\n" % (dest, last_synced[r][dest]))
 
 
 def main():
@@ -161,7 +161,7 @@ def main():
                                 default=False,
                                 help='List defined repositories.')
 
-    group_projects = parser.add_argument_group('repositories', 'Manage repositories.')
+    group_projects = parser.add_argument_group('Repositories', 'Manage repositories.')
     group_projects.add_argument('-n',
                                 '--name',
                                 dest='names',

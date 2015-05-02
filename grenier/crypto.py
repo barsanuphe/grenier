@@ -33,19 +33,15 @@ class AESCipher(object):
         return self._unpad(r)
 
     def encrypt_file(self, path):
-        f = open(path, "rb")
-        not_encrypted = f.read()
-        f.close()
+        with  open(path, "rb") as f:
+            not_encrypted = f.read()
         encrypted = self.encrypt(not_encrypted)
-        f = open(path, "wb")
-        f.write(encrypted)
-        f.close()
+        with open(path, "wb") as f:
+            f.write(encrypted)
 
     def decrypt_file(self, path):
-        f = open(path, "rb")
-        encrypted = f.read()
-        f.close()
+        with open(path, "rb") as f:
+            encrypted = f.read()
         not_encrypted = self.decrypt(encrypted)
-        f = open(path, "wb")
-        f.write(not_encrypted)
-        f.close()
+        with open(path, "wb") as f:
+            f.write(not_encrypted)

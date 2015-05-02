@@ -32,7 +32,7 @@ setup(
     packages=['grenier'],
 
     # note: attic has unresolved dependancies (blosc) for now
-    install_requires=['pyrax', 'pyyaml', 'notify2', 'crypto', 'xdg'],
+    install_requires=['pyrax', 'pyyaml', 'notify2', 'crypto'],# , 'xdg'],
 
 
     # If there are data files included in your packages that need to be

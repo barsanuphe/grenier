@@ -37,5 +37,5 @@ for external in externals:
         assert subprocess.call([external, "--version"],
                                stdout=subprocess.DEVNULL) == 0
     except Exception:
-        print("%s must be installed!" % module)
+        print("%s must be installed!" % external)
         sys.exit(-1)
