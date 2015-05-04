@@ -29,9 +29,9 @@ except Exception as err:
 
 # -- External binaries
 
-# install: duplicity, rsync
+# install: duplicity, rsync, bup
 # attic detected as python3 module already
-externals = ["duplicity", "rsync"]
+externals = ["duplicity", "rsync", "bup"]
 for external in externals:
     try:
         assert subprocess.call([external, "--version"],

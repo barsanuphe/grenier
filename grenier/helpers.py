@@ -59,6 +59,25 @@ def attic_command(cmd, passphrase, quiet=False):
     p.communicate()
     return output
 
+def bup_command(cmd, backup_directory, quiet=False):
+    logger.debug(cmd)
+    env_dict = {"BUP_DIR": backup_directory.as_posix()}
+    p = subprocess.Popen(["bup"] + cmd,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         bufsize=1,
+                         env=env_dict)
+    output = []
+    for line in iter(p.stdout.readline, b''):
+        if not quiet:
+            logger.info("\t"+line.decode("utf8").rstrip())
+        output.append(line.decode("utf8").rstrip())
+    for line in iter(p.stderr.readline, b''):
+        if not quiet:
+            logger.warning("\t !!! " + line.decode("utf8").rstrip())
+        output.append("\t !!! " + line.decode("utf8").rstrip())
+    p.communicate()
+    return output
 
 def rsync_command(cmd, quiet=False):
     logger.debug(cmd)
@@ -89,7 +108,7 @@ def list_fuse_mounts():
     mounts = []
     for line in iter(p.stdout.readline, b''):
         line = line.decode("utf8").strip()
-        if "atticfs" in line:
+        if "atticfs" in line or "fuse.bup-fuse" in line:
             mounts.append(line.split(" ")[2])
     return mounts
 

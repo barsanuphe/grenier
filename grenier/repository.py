@@ -20,7 +20,7 @@ class GrenierSource(object):
 class GrenierRepository(object):
     def __init__(self, name, backup_dir, passphrase=None):
         self.name = name
-        self.backup_dir = Path(backup_dir)
+        self.backup_dir = backup_dir
         if not self.backup_dir.exists():
             logger.info("+ Creating folder %s" % self.backup_dir)
             self.backup_dir.mkdir(parents=True)
@@ -247,3 +247,50 @@ class GrenierRepository(object):
     def do_fuse(self, folder):
         attic_command(["mount", "-v", self.backup_dir.as_posix(), folder],
                       self.passphrase)
+
+
+class GrenierBupRepository(GrenierRepository):
+    def __init__(self, name, backup_dir, passphrase=None):
+        super().__init__(name, backup_dir, passphrase)
+
+    def do_init(self):
+        bup_command(["init"], self.backup_dir, quiet=True)
+
+    def do_save(self, source):
+        logger.info("+ Indexing source directory %s."%source.target_dir)
+        if source.excluded_extensions != []:
+            output = bup_command(["index", "-vv",
+                         source.target_dir,
+                         '--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions)],
+                        self.backup_dir,
+                        quiet=False)
+        else:
+            output = bup_command(["index", "-vv",
+                         source.target_dir],
+                        self.backup_dir,
+                        quiet=False)
+        number_of_files = len([el for el in output if el[-1] != "/"])
+        logger.info("+ Indexed %s files."%number_of_files)
+        logger.info("+ Saving source directory %s to %s."%(source.target_dir,
+                                                           self.backup_dir))
+        bup_command(["save", "-v",
+                     source.target_dir,
+                     "-n",
+                     source.name,
+                     '--strip-path=%s'%source.target_dir,
+                     '-9'],
+                    self.backup_dir,
+                    quiet=False)
+        logger.info("+ Generating par2 files for repository.")
+        bup_command(["fsck", "-v", "-g", "-j9"], self.backup_dir, quiet=False)
+
+    def do_check(self):
+        bup_command(["fsck", "-v", "-r", "-j9"], self.backup_dir, quiet=False)
+
+    def do_restore(self, source, target):
+        bup_command(["restore", "-C", target, "/%s/latest/."%source.name],
+                    self.backup_dir,
+                    quiet=False)
+
+    def do_fuse(self, folder):
+        bup_command(["fuse", folder], self.backup_dir, quiet=False)

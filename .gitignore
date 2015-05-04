@@ -1,7 +1,9 @@
 *.pyc
 *.log
-grenier.yaml
+*.yaml
 *~
 TODO
 old
 hubic_credentials
+test
+grenier.egg-info/

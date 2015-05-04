@@ -2,9 +2,10 @@
 
 ## What it is
 
-**Grenier** is a python3 wrapper around [attic](https://github.com/jborg/attic),
-[rsync](https://rsync.samba.org/) and [duplicity](http://duplicity.nongnu.org/),
-using a configuration file to manage repositories.
+**Grenier** is a python3 wrapper around [attic](https://github.com/jborg/attic)
+or [bup](https://github.com/bup/bup), [rsync](https://rsync.samba.org/) and
+[duplicity](http://duplicity.nongnu.org/), using a configuration file to manage
+repositories.
 
 **Grenier** can create new archives in these repositories, and also copy them to
 external drives or to [google drive](https://www.google.com/drive/) and
@@ -37,6 +38,7 @@ Current requirements:
 
 External binaries required:
 - [attic](https://github.com/jborg/attic)
+- [bup](https://github.com/bup/bup)
 - [duplicity](http://duplicity.nongnu.org/) (for google drive and hubic backup)
 - [rsync](https://rsync.samba.org/) (for external drives backup)
 
@@ -72,7 +74,7 @@ the cloud (see `--last-synced`).
                 [-s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]] [-c]
                 [-f MOUNT_POINT] [-r RESTORE_DIRECTORY] [--last-synced]
 
-    Grenier. A wrapper around attic and duplicity to back stuff up.
+    Grenier. A wrapper around attic/bup, duplicity to back stuff up.
 
     optional arguments:
     -h, --help            show this help message and exit
@@ -110,7 +112,8 @@ The following commands assume the configuration file is as
 This creates timestamped archives of all sources for the `documents` repository
 (something like `2015-04-09_22h48_work` and `2015-04-09_22h53_notes`), as
 described in the configuration file. If the repository does not exist, it will
-be created.
+be created. Note that if `bup` is the backend, par2 files are automatically
+generated.
 
     grenier -n documents -b
 
@@ -151,8 +154,8 @@ Restoring the latest version of the `documents` repository to a directory:
 
 How about restoring files from copies/the cloud you say?
 That will never happen. Or maybe just once. You don't need a wrapper for this.
-Just use `attic` and/or `duplicity` directly. Chances are if that happens you
-will not mind checking out their man pages.
+Just use `attic`/`bup` and/or `duplicity` directly. Chances are if that happens
+you will not mind checking out their man pages.
 
 When did you last update the copies of your repositories on that hard drive
 you dropped off at your cousin's home?
@@ -176,6 +179,9 @@ That's why **the user is responsible for keeping this file safe**.
 
 Here is the general structure of how to describe a repository for **grenier**:
 
+    grenier:
+        backend: bup # or 'attic'
+
     repository_name:
         backup_dir: /path/to/repository
         passphrase: clear_passphrase
@@ -188,13 +194,20 @@ Here is the general structure of how to describe a repository for **grenier**:
             googledrive: address:password@gmail.com
             hubic: /path/to/credentials_file
 
+**Grenier** will automatically create a subdirectory
+`[backend]_[repository_name]` in backup_dir.
+
+If `bup` is the backend, the `passphrase` will only be used with `duplicity`.
 
 ### grenier.yaml example
 
 For example, this is a file defining two repositories:
 
+    grenier:
+        backend: attic
+
     documents:
-        backup_dir: /home/user/backup/attic_complots
+        backup_dir: /home/user/backup
         passphrase: CRxoKuMUpxpokpkpk5FF-hgookokok36wc7H
         sources:
             work:
@@ -207,7 +220,7 @@ For example, this is a file defining two repositories:
             googledrive: obviouslyfake:123password@gmail.com
             hubic: /path/to/credentials_file
     music:
-        backup_dir: /home/user/backup/attic_music
+        backup_dir: /home/user/backup
         passphrase: vqrlkjmohmohiuhç_hç_hçàhlmhmj_jmlkj
         sources:
             flac_music:

@@ -32,6 +32,7 @@ class Grenier(object):
                                         ENCRYPTION_FLAG)
         self.cipher = None
         self.reencrypted = False
+        self.backend = None
 
     def is_config_file_encrypted(self):
         first_check = (type(yaml.load(open(self.config_file.as_posix(),
@@ -75,10 +76,24 @@ class Grenier(object):
         if self.config_file.exists():
             try:
                 config = yaml.load(open(self.config_file.as_posix(), 'r'))
+                self.backend = config["grenier"]["backend"]
+
                 for p in config:
-                    bp = GrenierRepository(p,
-                                           config[p]["backup_dir"],
+                    if p == "grenier":
+                        continue
+                    backup_dir = Path(config[p]["backup_dir"],
+                                      "%s_%s"%(self.backend, p))
+                    if self.backend == "attic":
+                        bp = GrenierRepository(p,
+                                           backup_dir,
                                            config[p].get("passphrase", None))
+                    elif self.backend == "bup":
+                        bp = GrenierBupRepository(p,
+                                           backup_dir,
+                                           config[p].get("passphrase", None))
+                    else:
+                        raise Exception("Unknown backend %s"%self.backend)
+
                     sources_dict = config[p]["sources"]
                     for s in sources_dict:
                         bp.add_source(s,
@@ -138,7 +153,7 @@ def main():
     logger.info("\n# # # G R E N I E R # # #\n")
 
     parser = argparse.ArgumentParser(description='Grenier.\nA wrapper around '
-                                     'attic and duplicity to back stuff up.')
+                                     'attic/bup, duplicity to back stuff up.')
 
     group_config = parser.add_argument_group('Configuration',
                                              'Manage configuration files.')
