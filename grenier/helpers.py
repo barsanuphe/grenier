@@ -86,7 +86,6 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None, save_o
                stdout=PIPE,
                stderr=STDOUT,
                bufsize=1,
-               universal_newlines=True,
                env=env_dict) as p:
         for line in p.stdout:
             if number_of_items:
@@ -118,8 +117,7 @@ def get_folder_size(path):
     with Popen(["du", "-h", path.as_posix()],
                stdout=PIPE,
                stderr=STDOUT,
-               bufsize=1,
-               universal_newlines=True) as p:
+               bufsize=1) as p:
         for line in p.stdout:
             size = line.split()[0]
     return size
@@ -139,8 +137,7 @@ def list_fuse_mounts():
     with Popen(["mount"],
                stdout=PIPE,
                stderr=STDOUT,
-               bufsize=1,
-               universal_newlines=True) as p:
+               bufsize=1) as p:
         for line in p.stdout:
             if "atticfs" in line or "fuse.bup-fuse" in line:
                 mounts.append(line.split(" ")[2])
