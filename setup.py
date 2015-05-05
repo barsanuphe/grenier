@@ -1,5 +1,5 @@
 """Grenier.
-A wrapper around attic, rsync and duplicity.
+A wrapper around attic/bup, rsync and duplicity.
 """
 
 # Always prefer setuptools over distutils
@@ -13,7 +13,7 @@ from os import path
 setup(
     name='grenier',
     version='0.1.0',
-    description='A wrapper around attic, rsync and duplicity.',
+    description='A wrapper around attic/bup, rsync and duplicity.',
     #long_description=long_description,
     url='https://github.com/barsanuphe/grenier',
     author='barsanuphe',
@@ -32,7 +32,7 @@ setup(
     packages=['grenier'],
 
     # note: attic has unresolved dependancies (blosc) for now
-    install_requires=['pyrax', 'pyyaml', 'notify2', 'crypto'],# , 'xdg'],
+    install_requires=['pyrax', 'pyyaml', 'notify2', 'crypto', 'progressbar'],# , 'xdg'],
 
 
     # If there are data files included in your packages that need to be

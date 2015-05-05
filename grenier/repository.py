@@ -286,12 +286,23 @@ class GrenierBupRepository(GrenierRepository):
                     quiet=False,
                     number_of_items=len(output),
                     save_output=False)
+
         logger.info("+ Generating par2 files for repository.")
-        bup_command(["fsck", "-v", "-g", "-j9"], self.backup_dir, quiet=False)
+        repository_objects = Path(self.backup_dir, "objects", "pack")
+        packs = [el for el in repository_objects.iterdir() if el.suffix == ".pack"]
+        bup_command(["fsck", "-v", "-g", "-j9"],
+                    self.backup_dir,
+                    quiet=True,
+                    number_of_items=len(packs))
         logger.info("+ Final repository size: %s." % get_folder_size(self.backup_dir))
 
     def do_check(self):
-        bup_command(["fsck", "-vv", "-r", "-j9"], self.backup_dir, quiet=False)
+        repository_objects = Path(self.backup_dir, "objects", "pack")
+        packs = [el for el in repository_objects.iterdir() if el.suffix == ".pack"]
+        bup_command(["fsck", "-v", "-r", "-j9"],
+                    self.backup_dir,
+                    quiet=False,
+                    number_of_items=len(packs))
 
     def do_restore(self, source, target):
         bup_command(["restore", "-C", target, "/%s/latest/."%source.name],

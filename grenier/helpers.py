@@ -91,7 +91,8 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None, save_o
         for line in p.stdout:
             if number_of_items:
                 cpt += 1
-                pbar.update(cpt)
+                if cpt < number_of_items:
+                    pbar.update(cpt)
             elif not quiet:
                 logger.info("\t"+line.rstrip())
             if save_output:
