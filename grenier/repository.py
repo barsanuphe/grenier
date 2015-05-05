@@ -13,7 +13,7 @@ from grenier.helpers import *
 class GrenierSource(object):
     def __init__(self, name, target_dir, format_list=[]):
         self.name = name
-        self.target_dir = target_dir
+        self.target_dir = Path(target_dir)
         self.excluded_extensions = format_list
 
 
@@ -177,16 +177,21 @@ class GrenierRepository(object):
 
     def __str__(self):
         txt = "++ Repository %s\n" % self.name
-        txt += "\tBup Dir: %s\n" % self.backup_dir
+        txt += "\tBup Dir: %s (%s)\n" % (self.backup_dir,
+                                         get_folder_size(self.backup_dir))
         txt += "\tSources:\n"
         for source in self.sources:
+            #TODO exlude extensions
+            source_size = get_folder_size(source.target_dir)
             if source.excluded_extensions != []:
-                txt += "\t\t%s (%s) [exluded: %s]\n" % (source.name,
+                txt += "\t\t%s (%s) (%s) [exluded: %s]\n" % (source.name,
                                                     source.target_dir,
+                                                    source_size,
                                                     source.excluded_extensions)
             else:
-                txt += "\t\t%s (%s)\n" % (source.name,
-                                          source.target_dir)
+                txt += "\t\t%s (%s) (%s)\n" % (source.name,
+                                               source.target_dir,
+                                               source_size)
         txt += "\tBackups:\n"
         if self.has_valid_google_address:
             txt += "\t\tGoogle Drive\n"
@@ -213,7 +218,7 @@ class GrenierRepository(object):
                        "%s::%s_%s" % (self.backup_dir,
                                       time.strftime("%Y-%m-%d_%Hh%M"),
                                       source.name),
-                       source.target_dir] + excluded,
+                       source.target_dir.as_posix()] + excluded,
                       self.passphrase)
 
     def do_check(self):
@@ -260,32 +265,33 @@ class GrenierBupRepository(GrenierRepository):
         logger.info("+ Indexing source directory %s."%source.target_dir)
         if source.excluded_extensions != []:
             output = bup_command(["index", "-vv",
-                         source.target_dir,
+                         source.target_dir.as_posix(),
                          '--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions)],
                         self.backup_dir,
-                        quiet=False)
+                        quiet=True)
         else:
             output = bup_command(["index", "-vv",
-                         source.target_dir],
-                        self.backup_dir,
-                        quiet=False)
-        number_of_files = len([el for el in output if el[-1] != "/"])
-        logger.info("+ Indexed %s files."%number_of_files)
+                                  source.target_dir.as_posix()],
+                                self.backup_dir,
+                                quiet=True)
         logger.info("+ Saving source directory %s to %s."%(source.target_dir,
                                                            self.backup_dir))
-        bup_command(["save", "-v",
-                     source.target_dir,
+        bup_command(["save", "-vv",
+                     source.target_dir.as_posix(),
                      "-n",
                      source.name,
-                     '--strip-path=%s'%source.target_dir,
+                     '--strip-path=%s'%source.target_dir.as_posix(),
                      '-9'],
                     self.backup_dir,
-                    quiet=False)
+                    quiet=False,
+                    number_of_items=len(output),
+                    save_output=False)
         logger.info("+ Generating par2 files for repository.")
         bup_command(["fsck", "-v", "-g", "-j9"], self.backup_dir, quiet=False)
+        logger.info("+ Final repository size: %s." % get_folder_size(self.backup_dir))
 
     def do_check(self):
-        bup_command(["fsck", "-v", "-r", "-j9"], self.backup_dir, quiet=False)
+        bup_command(["fsck", "-vv", "-r", "-j9"], self.backup_dir, quiet=False)
 
     def do_restore(self, source, target):
         bup_command(["restore", "-C", target, "/%s/latest/."%source.name],

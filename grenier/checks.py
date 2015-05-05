@@ -8,8 +8,8 @@ if sys.version_info < (3, 4, 0):
 
 # -- Python modules
 
-# install: python-yaml, python-xdg, python-notify2, python-crypto, attic
-modules = ["yaml", "xdg.BaseDirectory", "notify2", "Crypto", "attic"]
+# install: python-yaml, python-xdg, python-notify2, python-crypto, attic, python-progressbar
+modules = ["yaml", "xdg.BaseDirectory", "notify2", "Crypto", "attic", "progressbar"]
 for module in modules:
     try:
         __import__(module)
