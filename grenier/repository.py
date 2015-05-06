@@ -181,8 +181,8 @@ class GrenierRepository(object):
                                          get_folder_size(self.backup_dir))
         txt += "\tSources:\n"
         for source in self.sources:
-            #TODO exlude extensions
-            source_size = get_folder_size(source.target_dir)
+            source_size = get_folder_size(source.target_dir,
+                                          source.excluded_extensions)
             if source.excluded_extensions != []:
                 txt += "\t\t%s (%s) (%s) [exluded: %s]\n" % (source.name,
                                                     source.target_dir,
@@ -261,48 +261,69 @@ class GrenierBupRepository(GrenierRepository):
     def do_init(self):
         bup_command(["init"], self.backup_dir, quiet=True)
 
-    def do_save(self, source):
-        logger.info("+ Indexing source directory %s."%source.target_dir)
+    def do_index(self, source):
+        logger.info("+ Indexing.")
+        cmd = ["index", "-vv", source.target_dir.as_posix()]
         if source.excluded_extensions != []:
-            output = bup_command(["index", "-vv",
-                         source.target_dir.as_posix(),
-                         '--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions)],
-                        self.backup_dir,
-                        quiet=True)
+            cmd.append('--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions))
+        output = bup_command(cmd, self.backup_dir, quiet=True)
+        return len(output)
+
+    def do_fsck(self, generate=False):
+        if generate:
+            logger.info("+ Generating redundancy files.")
         else:
-            output = bup_command(["index", "-vv",
-                                  source.target_dir.as_posix()],
-                                self.backup_dir,
-                                quiet=True)
-        logger.info("+ Saving source directory %s to %s."%(source.target_dir,
-                                                           self.backup_dir))
+            logger.info("+ Checking (and repairing) repository.")
+        # get number of .pack files
+        # each .pack has its own par2 files
+        repository_objects = Path(self.backup_dir, "objects", "pack")
+        packs = [el
+                 for el in repository_objects.iterdir()
+                 if el.suffix == ".pack"]
+        cmd = ["fsck", "-v", "-j8"]
+        if generate:
+            cmd.append("-g")
+            title = "Generating: "
+        else:
+            cmd.append("-r")
+            title = "Checking: "
+        bup_command(cmd, self.backup_dir, quiet=True,
+                    number_of_items=len(packs),
+                    pbar_title=title,
+                    save_output=False)
+
+    def save(self):
+        original_size = get_folder_size(self.backup_dir)
+        total_number_of_files = 0
+        for source in self.sources:
+            total_number_of_files += self.do_save(source)
+        new_size = get_folder_size(self.backup_dir)
+        delta = new_size - original_size
+        logger.info("+ Backed up %s files." % total_number_of_files)
+        logger.info("+ Final repository size: %s (+%s)." % (readable_size(new_size),
+                                                            readable_size(delta)))
+
+    def do_save(self, source):
+        logger.info("+ %s -> %s."%(source.target_dir,
+                                              self.backup_dir))
+
+        number_of_files = self.do_index(source)
+        logger.info("+ Saving.")
         bup_command(["save", "-vv",
                      source.target_dir.as_posix(),
-                     "-n",
-                     source.name,
+                     "-n", source.name,
                      '--strip-path=%s'%source.target_dir.as_posix(),
                      '-9'],
                     self.backup_dir,
                     quiet=False,
-                    number_of_items=len(output),
+                    number_of_items=number_of_files,
+                    pbar_title="Saving: ",
                     save_output=False)
-
-        logger.info("+ Generating par2 files for repository.")
-        repository_objects = Path(self.backup_dir, "objects", "pack")
-        packs = [el for el in repository_objects.iterdir() if el.suffix == ".pack"]
-        bup_command(["fsck", "-v", "-g", "-j9"],
-                    self.backup_dir,
-                    quiet=True,
-                    number_of_items=len(packs))
-        logger.info("+ Final repository size: %s." % get_folder_size(self.backup_dir))
+        self.do_fsck(generate=True)
+        return number_of_files
 
     def do_check(self):
-        repository_objects = Path(self.backup_dir, "objects", "pack")
-        packs = [el for el in repository_objects.iterdir() if el.suffix == ".pack"]
-        bup_command(["fsck", "-v", "-r", "-j9"],
-                    self.backup_dir,
-                    quiet=False,
-                    number_of_items=len(packs))
+        self.do_fsck(generate=False)
 
     def do_restore(self, source, target):
         bup_command(["restore", "-C", target, "/%s/latest/."%source.name],

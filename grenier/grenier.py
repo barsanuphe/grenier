@@ -272,7 +272,7 @@ def main():
                 if args.list_repositories:
                     print(p)
                 if args.names is not None and p.name in args.names or args.names == ["all"]:
-                    logger.info("+++ Working on %s +++\n" % p.name)
+                    logger.info("\n+++ Repository %s +++\n" % p.name)
                     logger.debug(p)
 
                     if args.check:
@@ -311,7 +311,8 @@ def main():
 
     except KeyboardInterrupt:
         overall_time = time.time() - overall_start
-        logger.error("\n+ Got interrupted after %.2fs." % overall_time)
+        logger.error("\n+ !! Got interrupted after %.2fs." % overall_time)
+        notify_this("!! Grenier was killed after %.2fs." % overall_time)
         sys.exit()
 
 if __name__ == "__main__":

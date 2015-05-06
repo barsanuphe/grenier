@@ -73,14 +73,14 @@ def generate_pbar(title, number_of_elements):
     return ProgressBar(widgets = widgets, maxval = number_of_elements).start()
 
 
-def bup_command(cmd, backup_directory, quiet=False, number_of_items=None, save_output=True):
+def bup_command(cmd, backup_directory, quiet=False, number_of_items=None, pbar_title="", save_output=True):
     logger.debug(cmd)
     env_dict = {"BUP_DIR": backup_directory.as_posix()}
     output = []
 
     if number_of_items:
         cpt = 0
-        pbar = generate_pbar("Saving: ", number_of_items).start()
+        pbar = generate_pbar(pbar_title, number_of_items).start()
 
     with Popen(["bup"] + cmd,
                stdout=PIPE,
@@ -112,15 +112,24 @@ def rsync_command(cmd, quiet=False):
             logger.warning("\t !!! " + line.decode("utf8").rstrip())
     p.communicate()
 
+def readable_size(num):
+    for unit in ['b','Kb','Mb','Gb','Tb']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s" % (num, unit)
+        num /= 1024.0
+    return num
 
-def get_folder_size(path):
-    with Popen(["du", "-h", path.as_posix()],
+def get_folder_size(path, excluded_extensions=[]):
+    cmd = ["du", "-b", path.as_posix()]
+    for ext in excluded_extensions:
+        cmd.append("--exclude=*.%s"%ext)
+    with Popen(cmd,
                stdout=PIPE,
                stderr=STDOUT,
                bufsize=1) as p:
         for line in p.stdout:
-            size = line.split()[0]
-    return size
+            size = line.split()[0].decode("utf8")
+    return int(size)
 
 
 def create_or_check_if_empty(target):
