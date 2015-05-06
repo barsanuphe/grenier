@@ -174,3 +174,35 @@ def update_or_create_sync_file(path, backup_name):
         synced = yaml.load(open(path.as_posix(), 'r'))
     synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
     yaml.dump(synced, open(path.as_posix(), 'w'), default_flow_style=False)
+
+
+try:
+    # colored input is optionnal
+    from colorama import init
+    init(autoreset=True)
+    from colorama import Fore, Style
+
+    colors = {
+                "red": Fore.RED + Style.BRIGHT,
+                "green": Fore.GREEN + Style.NORMAL,
+                "boldgreen": Fore.GREEN + Style.BRIGHT,
+                "blue": Fore.BLUE + Style.NORMAL,
+                "boldblue": Fore.BLUE + Style.BRIGHT,
+                "yellow": Fore.YELLOW + Style.NORMAL,
+                "boldwhite": Fore.WHITE + Style.BRIGHT
+             }
+
+    def log(text, display=True, save=True, color=None):
+        if display:
+            if color in colors:
+                print(colors[color]  + text + Style.RESET_ALL)
+            else:
+                print(text)
+        if save:
+            logger.debug(text)
+except:
+    def log(text, display=True, save=True, color=None):
+        if display:
+            print(text)
+        if save:
+            logger.debug(text)

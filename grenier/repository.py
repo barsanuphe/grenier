@@ -37,7 +37,7 @@ class GrenierRepository(object):
 
     def init(self):
         if create_or_check_if_empty(self.backup_dir):
-            logger.info("+ Initializing repository.")
+            log("+ Initializing repository.", color="yellow")
             self.do_init()
 
     def save(self):
@@ -45,7 +45,7 @@ class GrenierRepository(object):
             self.do_save(source)
 
     def check_and_repair(self):
-        logger.info("+ Checking and repairing repository.")
+        log("+ Checking and repairing repository.", color="yellow")
         self.do_check()
 
     def backup(self, check_before=False):
@@ -54,28 +54,29 @@ class GrenierRepository(object):
         if check_before:
             self.check_and_repair()
         self.save()
-        logger.info("+ Backup done in %.2fs." % (time.time() - starting_time))
+        log("+ Backup done in %.2fs." % (time.time() - starting_time),
+            color="green")
 
     def restore(self, target):
         if not create_or_check_if_empty(target):
-            logger.error("Directory %s is not empty,"
-                         " not doing anything." % target)
+            log("Directory %s is not empty,"
+                         " not doing anything." % target, color="red")
             sys.exit(-1)
         for source in self.sources:
-            logger.info("+ Restoring %s to %s." % (source.name, target))
+            log("+ Restoring %s to %s." % (source.name, target), color="yellow")
             self.do_restore(source, target)
 
     def fuse(self, folder):
         if create_or_check_if_empty(folder):
             self.fuse_dir = folder
-            logger.info("+ Mounting repository to %s." % (folder))
+            log("+ Mounting repository to %s." % (folder), color="yellow")
             self.do_fuse(folder)
 
     def unfuse(self, folder=None):
         if folder is not None:
             self.fuse_dir = folder
         if self.fuse_dir is not None:
-            logger.info("+ Unmounting repository from %s." % (folder))
+            log("+ Unmounting repository from %s." % (folder), color="yellow")
             os.system("fusermount -u %s" % self.fuse_dir)
 
     def add_google_drive_backend(self, address):
@@ -90,21 +91,21 @@ class GrenierRepository(object):
     def save_to_google_drive(self):
         if self.has_valid_google_address:
             start = time.time()
-            logger.info("+ Syncing with google drive.")
+            log("+ Syncing with google drive.", color="yellow")
             duplicity_command([self.backup_dir.as_posix(),
                                "gdocs://%s/grenier/%s" % (self.google_address,
                                                           self.name)],
                               self.passphrase)
             self.just_synced.append({"google": time.strftime("%Y-%m-%d_%Hh%M")})
-            logger.info("+ Synced in %.2fs." % (time.time() - start))
+            log("+ Synced in %.2fs." % (time.time() - start), color="green")
 
     def restore_from_google_drive(self, target):
         if not create_or_check_if_empty(target):
-            logger.error("Directory %s is not empty,"
-                         " not doing anything." % target)
+            log("Directory %s is not empty,"
+                " not doing anything." % target, color="red")
             sys.exit(-1)
         if self.has_valid_google_address:
-            logger.info("+ Restoring from google drive.")
+            log("+ Restoring from google drive.", color="yellow")
             duplicity_command(["gdocs://%s/grenier/%s" % (self.google_address,
                                                           self.name), target],
                               self.passphrase)
@@ -117,20 +118,20 @@ class GrenierRepository(object):
         # TODO aller chercher credentials dans config
         if self.hubic_credentials:
             start = time.time()
-            logger.info("+ Syncing with hubic.")
+            log("+ Syncing with hubic.", color="yellow")
             duplicity_command([self.backup_dir.as_posix(),
                                "cf+hubic://%s" % self.name],
                               self.passphrase)
             self.just_synced.append({"hubic": time.strftime("%Y-%m-%d_%Hh%M")})
-            logger.info("+ Synced in %.2fs." % (time.time() - start))
+            log("+ Synced in %.2fs." % (time.time() - start), color="green")
 
     def restore_from_hubic(self, target):
         if not create_or_check_if_empty(target):
-            logger.error("Directory %s is not empty,"
-                         " not doing anything." % target)
+            log("Directory %s is not empty,"
+                " not doing anything." % target, color="red")
             sys.exit(-1)
         # TODO aller chercher credentials dans config
-        logger.info("+ Restoring from hubic.")
+        log("+ Restoring from hubic.", color="yellow")
         duplicity_command(["cf+hubic://%s" % self.name, target],
                           self.passphrase)
 
@@ -142,7 +143,7 @@ class GrenierRepository(object):
             mount_point = Path("/run/media/%s/%s" % (getpass.getuser(),
                                                      disk_name))
             if not mount_point.exists():
-                logger.error("!! Drive %s is not mounted." % disk_name)
+                log("!! Drive %s is not mounted." % disk_name, color="red")
             else:
                 if self.save_to_folder(mount_point):
                     self.just_synced.append({disk_name: time.strftime("%Y-%m-%d_%Hh%M")})
@@ -150,29 +151,29 @@ class GrenierRepository(object):
     def save_to_folder(self, target):
         path = Path(target)
         if not path.is_absolute():
-            logger.error("Directory %s is not an absolute path,"
-                         "nothing will be done." % path)
+            log("Directory %s is not an absolute path,"
+                "nothing will be done." % path, color="red")
             return False
         else:
-            logger.info("+ Syncing with %s." % path)
+            log("+ Syncing with %s." % path, color="yellow")
             if not path.exists():
                 path.mkdir(parents=True)
             start = time.time()
             rsync_command([self.backup_dir.as_posix(), path.as_posix()])
             update_or_create_sync_file(Path(path, "last_synced.yaml"),
                                        self.name)
-            logger.info("+ Synced in %.2fs." % (time.time() - start))
+            log("+ Synced in %.2fs." % (time.time() - start), color="green")
             return True
 
     def restore_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
-            logger.error("Directory %s is not empty,"
-                         " not doing anything." % target)
+            log("Directory %s is not empty,"
+                " not doing anything." % target, color="red")
         elif not Path(target).is_absolute():
-            logger.error("!! Directory %s is not an absolute path,"
-                         " nothing will be done." % target)
+            log("!! Directory %s is not an absolute path,"
+                " nothing will be done." % target, color="red")
         else:
-            logger.info("+ Restoring from %s to %s." % (folder, target))
+            log("+ Restoring from %s to %s." % (folder, target), color="yellow")
             duplicity_command([Path(folder).as_uri(), target], self.passphrase)
 
     def __str__(self):
@@ -208,8 +209,9 @@ class GrenierRepository(object):
                       self.passphrase)
 
     def do_save(self, source):
-        logger.info("+ Saving source directory %s to %s." % (source.target_dir,
-                                                             self.backup_dir))
+        log("+ Saving source directory %s to %s." % (source.target_dir,
+                                                     self.backup_dir),
+            color="yellow")
         excluded = []
         for excl in source.excluded_extensions:
             excluded.extend(["--exclude", "*.%s" % excl])
@@ -239,8 +241,8 @@ class GrenierRepository(object):
         # create target/source.name
         p = Path(target, latest_archive_name)
         if not create_or_check_if_empty(p):
-            logger.error("Target %s cannot be created or is not empty."
-                         "Not doing anything." % p)
+            log("Target %s cannot be created or is not empty."
+                         "Not doing anything." % p, color="red")
             sys.exit(-1)
         # cd to this
         os.chdir(p.as_posix())
@@ -262,7 +264,7 @@ class GrenierBupRepository(GrenierRepository):
         bup_command(["init"], self.backup_dir, quiet=True)
 
     def do_index(self, source):
-        logger.info("+ Indexing.")
+        log("+ Indexing.", color="yellow")
         cmd = ["index", "-vv", source.target_dir.as_posix()]
         if source.excluded_extensions != []:
             cmd.append('--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions))
@@ -271,9 +273,7 @@ class GrenierBupRepository(GrenierRepository):
 
     def do_fsck(self, generate=False):
         if generate:
-            logger.info("+ Generating redundancy files.")
-        else:
-            logger.info("+ Checking (and repairing) repository.")
+            log("+ Generating redundancy files.", color="yellow")
         # get number of .pack files
         # each .pack has its own par2 files
         repository_objects = Path(self.backup_dir, "objects", "pack")
@@ -299,16 +299,16 @@ class GrenierBupRepository(GrenierRepository):
             total_number_of_files += self.do_save(source)
         new_size = get_folder_size(self.backup_dir)
         delta = new_size - original_size
-        logger.info("+ Backed up %s files." % total_number_of_files)
-        logger.info("+ Final repository size: %s (+%s)." % (readable_size(new_size),
-                                                            readable_size(delta)))
+        log("+ Backed up %s files." % total_number_of_files, color="green")
+        log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
+                                                    readable_size(delta)),
+            color="green")
 
     def do_save(self, source):
-        logger.info("+ %s -> %s."%(source.target_dir,
-                                              self.backup_dir))
+        log(">> %s -> %s."%(source.target_dir, self.backup_dir), color="blue")
 
         number_of_files = self.do_index(source)
-        logger.info("+ Saving.")
+        log("+ Saving.", color="yellow")
         bup_command(["save", "-vv",
                      source.target_dir.as_posix(),
                      "-n", source.name,

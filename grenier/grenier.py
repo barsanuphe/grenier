@@ -11,6 +11,7 @@ from grenier.checks import *
 from grenier.logger import *
 from grenier.repository import *
 from grenier.crypto import *
+from grenier.helpers import *
 
 # 3rd party modules
 import yaml
@@ -150,7 +151,7 @@ class Grenier(object):
 
 
 def main():
-    logger.info("\n# # # G R E N I E R # # #\n")
+    log("\n# # # G R E N I E R # # #", color="boldwhite")
 
     parser = argparse.ArgumentParser(description='Grenier.\nA wrapper around '
                                      'attic/bup, duplicity to back stuff up.')
@@ -228,7 +229,7 @@ def main():
     logger.debug(args)
 
     if args.names is None and args.last_synced is False and args.encrypt is False and args.list_repositories is False:
-        print("No project selected. Nothing can be done.")
+        log("No project selected. Nothing can be done.", color="red", save=False)
         sys.exit(-1)
 
     if args.config and Path(args.config[0]).exists():
@@ -239,7 +240,7 @@ def main():
         try:
             assert configuration_file.exists()
         except:
-            print("No configuration file found at %s" % configuration_file)
+            log("No configuration file found at %s" % configuration_file, color="red", save=False)
             sys.exit(-1)
 
     if args.fuse:
@@ -247,15 +248,15 @@ def main():
             assert Path(args.fuse[0]).exists()
             assert len(args.names) == 1
         except AssertionError:
-            print("One project (and one only) must be specified with --name,"
-                  " and the mountpoint must be an existing directory.")
+            log("One project (and one only) must be specified with --name,"
+                  " and the mountpoint must be an existing directory.", color="red", save=False)
             sys.exit(-1)
 
     if args.restore:
         try:
             assert len(args.names) == 1
         except AssertionError:
-            print("One project (and one only) must be specified with --name")
+            log("One project (and one only) must be specified with --name", color="red", save=False)
             sys.exit(-1)
 
     # This is where stuff actually gets done.
@@ -263,7 +264,7 @@ def main():
     try:
         with Grenier(configuration_file, args.encrypt) as g:
             if not g.open_config():
-                print("Invalid configuration. Exiting.")
+                log("Invalid configuration. Exiting.", color="red", save=False)
                 if g.originally_encrypted:
                     print("Bad encryption passphrase maybe?"
                           "Manually restore the backup.")
@@ -272,8 +273,8 @@ def main():
                 if args.list_repositories:
                     print(p)
                 if args.names is not None and p.name in args.names or args.names == ["all"]:
-                    logger.info("\n+++ Repository %s +++\n" % p.name)
-                    logger.debug(p)
+                    log("\n+ %s +\n" % p.name, color="boldblue")
+                    log(p, display=False)
 
                     if args.check:
                         p.check_and_repair()
@@ -306,14 +307,14 @@ def main():
                 g.show_last_synced()
 
         overall_time = time.time() - overall_start
-        logger.info("\n+ Everything was done in %.2fs." % overall_time)
+        log("\nEverything was done in %.2fs." % overall_time, color="boldgreen")
         notify_this("Everything was done in %.2fs." % overall_time)
 
     except KeyboardInterrupt:
         overall_time = time.time() - overall_start
-        logger.error("\n+ !! Got interrupted after %.2fs." % overall_time)
+        log("\n!! Got interrupted after %.2fs." % overall_time, color="red")
         notify_this("!! Grenier was killed after %.2fs." % overall_time)
-        sys.exit()
+        sys.exit(-1)
 
 if __name__ == "__main__":
     main()
