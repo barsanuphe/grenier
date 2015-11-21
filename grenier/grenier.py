@@ -38,7 +38,7 @@ class Grenier(object):
                     config = yaml.load(f)
                     for p in config:
                         backup_dir = Path(config[p]["backup_dir"], "bup_%s" % p)
-                        temp_dir = Path(config[p]["temp_dir"], "/tmp/bup_%s" % p)
+                        temp_dir = Path(config[p].get("temp_dir", "/tmp/bup_%s" % p))
                         bp = GrenierRepository(p,
                                                backup_dir,
                                                temp_dir,
@@ -216,7 +216,7 @@ def main():
                         p.check_and_repair()
 
                     if args.backup:
-                        p.backup()
+                        number_of_files = p.backup()
 
                     if args.backup_target:
                         # finding what remotes to back up

@@ -7,7 +7,7 @@ test1:
             excluded: ["ignored"]
         folder2:
             dir: test_files/folder2
-    temp_dir: /home/b/temp
+    temp_dir: test_files/fuse
     remotes:
         - disk1_name
         - /absolute/path

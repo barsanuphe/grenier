@@ -140,10 +140,10 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
                 pbar_title="", save_output=True):
     # TODO return success, err
     logger.debug(cmd)
-    env_dict = {"BUP_DIR": backup_directory.as_posix()}
+    env_dict = {"BUP_DIR": str(backup_directory)}
     output = []
 
-    if number_of_items:
+    if number_of_items and not quiet:
         cpt = 0
         pbar = generate_pbar(pbar_title, number_of_items).start()
 
@@ -153,15 +153,15 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
                bufsize=1,
                env=env_dict) as p:
         for line in p.stdout:
-            if number_of_items:
+            if number_of_items and not quiet:
                 cpt += 1
                 if cpt < number_of_items:
                     pbar.update(cpt)
             elif not quiet:
-                logger.info("\t" + line.rstrip())
+                logger.info("\t" + line.decode("utf8").rstrip())
             if save_output:
-                output.append(line.rstrip())
-    if number_of_items:
+                output.append(line.decode("utf8").rstrip())
+    if number_of_items and not quiet:
         pbar.finish()
     return output
 
@@ -219,15 +219,19 @@ def list_fuse_mounts():
         for line in p.stdout:
             line = line.decode("utf8")
             if "atticfs" in line or "fuse.bup-fuse" in line or "fuse.encfs" in line:
-                mounts.append(line.split(" ")[2])
+                mounts.append(Path(line.split(" ")[2]))
     return mounts
 
 
-def is_fuse_mounted(directory):
-    return str(directory) in list_fuse_mounts()
+def is_fuse_mounted(abs_directory):
+    if not abs_directory.is_absolute():
+        abs_directory = Path(Path.cwd(), abs_directory)
+    return abs_directory in list_fuse_mounts()
 
 
 def umount(path):
+    if not path.is_absolute():
+        path = Path(Path.cwd(), path)
     if is_fuse_mounted(path):
         os.system("fusermount -u %s" % path)
 

@@ -65,9 +65,10 @@ class GrenierRepository(object):
         self.sources = []
         self.remotes = []
 
+        # TODO remove
         self.google_configured = None
         self.hubic_configured = None
-        self.backup_disks = []
+
         self.passphrase = passphrase
         self.just_synced = []
 
@@ -77,6 +78,25 @@ class GrenierRepository(object):
     def add_remotes(self, remote_list):
         for remote in remote_list:
             self.remotes.append(GrenierRemote(remote))
+
+    def init(self, display=True):
+        if create_or_check_if_empty(self.backup_dir):
+            log("+ Initializing repository.", color="yellow", display=display)
+            bup_command(["init"], self.backup_dir, quiet=True)
+
+    def check_and_repair(self, display=True):
+        log("+ Checking and repairing repository.", color="yellow", display=display)
+        self._fsck(generate=False)
+
+    def backup(self, check_before=False, display=True):
+        starting_time = time.time()
+        self.init(display)
+        if check_before:
+            self.check_and_repair(display)
+        total_number_of_files = self.save(display)
+        log("+ Backup done in %.2fs." % (time.time() - starting_time),
+            color="green", display=display)
+        return total_number_of_files
 
     def sync_remote(self, remote_name):
         remote_found = False
@@ -95,24 +115,6 @@ class GrenierRepository(object):
         if not remote_found:
             print("Remote %s not found!!!" % remote_name)
 
-    def init(self):
-        if create_or_check_if_empty(self.backup_dir):
-            log("+ Initializing repository.", color="yellow")
-            bup_command(["init"], self.backup_dir, quiet=True)
-
-    def check_and_repair(self):
-        log("+ Checking and repairing repository.", color="yellow")
-        self._fsck(generate=False)
-
-    def backup(self, check_before=False):
-        starting_time = time.time()
-        self.init()
-        if check_before:
-            self.check_and_repair()
-        self.save()
-        log("+ Backup done in %.2fs." % (time.time() - starting_time),
-            color="green")
-
     def restore(self, target):
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
@@ -124,18 +126,18 @@ class GrenierRepository(object):
                         self.backup_dir,
                         quiet=False)
 
-    def fuse(self, folder):
+    def fuse(self, folder, display=True):
         if create_or_check_if_empty(folder):
             self.fuse_dir = folder
-            log("+ Mounting repository to %s." % folder, color="yellow")
-            bup_command(["fuse", folder], self.backup_dir, quiet=False)
+            log("+ Mounting repository to %s." % folder, color="yellow", display=display)
+            bup_command(["fuse", folder], self.backup_dir, quiet=True)
 
-    def unfuse(self, folder=None):
+    def unfuse(self, folder=None, display=True):
         if folder is not None:
             self.fuse_dir = folder
         if self.fuse_dir is not None:
             log("+ Unmounting repository from {folder}.".format(folder=self.fuse_dir),
-                color="yellow")
+                color="yellow", display=display)
             umount(self.fuse_dir)
 
     def save_to_folder(self, grenier_remote):
@@ -231,22 +233,22 @@ class GrenierRepository(object):
             txt += "\t\t- {remote}\n".format(remote=remote)
         return txt
 
-    def _index(self, source):
-        log("+ Indexing.", color="yellow")
-        cmd = ["index", "-vv", source.target_dir.as_posix()]
+    def _index(self, source, display=True):
+        log("+ Indexing.", color="yellow", display=display)
+        cmd = ["index", "-vv"]
         if source.excluded_extensions:
-            cmd.append('--exclude-rx="^.*\.(%s)$"' % "|".join(source.excluded_extensions))
+            cmd.append(r"--exclude-rx=^.*\.(%s)$" % r"|".join(source.excluded_extensions))
+        cmd.append(str(source.target_dir))
         output = bup_command(cmd, self.backup_dir, quiet=True)
         return len(output)
 
-    def _fsck(self, generate=False):
+    def _fsck(self, generate=False, display=True):
         if generate:
-            log("+ Generating redundancy files.", color="yellow")
+            log("+ Generating redundancy files.", color="yellow", display=display)
         # get number of .pack files
         # each .pack has its own par2 files
         repository_objects = Path(self.backup_dir, "objects", "pack")
-        packs = [el
-                 for el in repository_objects.iterdir()
+        packs = [el for el in repository_objects.iterdir()
                  if el.suffix == ".pack"]
         cmd = ["fsck", "-v", "-j8"]
         if generate:
@@ -255,36 +257,37 @@ class GrenierRepository(object):
         else:
             cmd.append("-r")
             title = "Checking: "
-        bup_command(cmd, self.backup_dir, quiet=True,
+        bup_command(cmd, self.backup_dir, quiet=not display,
                     number_of_items=len(packs),
                     pbar_title=title,
                     save_output=False)
 
-    def save(self):
+    def save(self, display=True):
         original_size = get_folder_size(self.backup_dir)
         total_number_of_files = 0
         for source in self.sources:
-            total_number_of_files += self._save(source)
+            total_number_of_files += self._save(source, display)
         new_size = get_folder_size(self.backup_dir)
         delta = new_size - original_size
-        log("+ Backed up %s files." % total_number_of_files, color="green")
+        log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
         log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
                                                     readable_size(delta)),
-            color="green")
+            color="green", display=display)
+        return total_number_of_files
 
-    def _save(self, source):
-        log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue")
-        number_of_files = self._index(source)
-        log("+ Saving.", color="yellow")
+    def _save(self, source, display=True):
+        log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
+        number_of_files = self._index(source, display)
+        log("+ Saving.", color="yellow", display=display)
         bup_command(["save", "-vv",
                      source.target_dir.as_posix(),
                      "-n", source.name,
                      '--strip-path=%s' % source.target_dir.as_posix(),
                      '-9'],
                     self.backup_dir,
-                    quiet=False,
+                    quiet=not display,
                     number_of_items=number_of_files,
                     pbar_title="Saving: ",
                     save_output=False)
-        self._fsck(generate=True)
+        self._fsck(generate=True, display=display)
         return number_of_files
