@@ -1,10 +1,6 @@
 #!/usr/env/python
-import os
-import time
-import sys
+import getpass
 import argparse
-import shutil
-from pathlib import Path
 # grenier modules
 from grenier.checks import *
 from grenier.logger import *
@@ -39,9 +35,13 @@ class Grenier(object):
                     for p in config:
                         backup_dir = Path(config[p]["backup_dir"], "bup_%s" % p)
                         temp_dir = Path(config[p].get("temp_dir", "/tmp/bup_%s" % p))
+                        rclone_config_file = Path(config[p].get("rclone_config_file",
+                                                                "/home/%s/.rclone.conf" % getpass.getuser()))
+                        assert rclone_config_file.exists()
                         bp = GrenierRepository(p,
                                                backup_dir,
                                                temp_dir,
+                                               rclone_config_file,
                                                config[p].get("passphrase", None))
                         sources_dict = config[p]["sources"]
                         for s in sources_dict:
@@ -216,7 +216,7 @@ def main():
                         p.check_and_repair()
 
                     if args.backup:
-                        number_of_files = p.backup()
+                        p.backup()
 
                     if args.backup_target:
                         # finding what remotes to back up

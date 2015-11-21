@@ -121,10 +121,16 @@ class TestClass(unittest.TestCase):
 
             found, remote = r._find_remote("test_cloud_container")
             self.assertTrue(found)
+            self.assertTrue(remote.is_known)
             self.assertTrue(remote.is_cloud)
-            self.assertTrue(remote.is_cloud_configured)
 
-            self.assertTrue(r.sync_remote("test_cloud_container", display=True))
+            self.assertTrue(r.sync_remote("test_cloud_container", display=False))
+            # testing encfs xml backup
+            xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
+            self.assertTrue(xml.exists())
+            # TODO test remote file size vs local?
+
+            # cleanup: rclone purge test_cloud_container:test1?
 
     def test_sync_to_gdrive(self):
         pass

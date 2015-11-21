@@ -8,6 +8,7 @@ test1:
         folder2:
             dir: test_files/folder2
     temp_dir: test_files/fuse
+    rclone_config_file: test_files/rclone.conf
     remotes:
         - DISK1
         - /tmp/grenier

@@ -1,8 +1,6 @@
 from subprocess import PIPE, Popen, STDOUT
 import time
-from pathlib import Path
 import os
-
 from grenier.logger import *
 
 try:
@@ -21,14 +19,15 @@ try:
     from colorama import Fore, Style
 
     colors = {
-        "red": Fore.RED + Style.BRIGHT,
-        "green": Fore.GREEN + Style.NORMAL,
+        "red":       Fore.RED + Style.BRIGHT,
+        "green":     Fore.GREEN + Style.NORMAL,
         "boldgreen": Fore.GREEN + Style.BRIGHT,
-        "blue": Fore.BLUE + Style.NORMAL,
-        "boldblue": Fore.BLUE + Style.BRIGHT,
-        "yellow": Fore.YELLOW + Style.NORMAL,
+        "blue":      Fore.BLUE + Style.NORMAL,
+        "boldblue":  Fore.BLUE + Style.BRIGHT,
+        "yellow":    Fore.YELLOW + Style.NORMAL,
         "boldwhite": Fore.WHITE + Style.BRIGHT
     }
+
 
     def log(text, display=True, save=True, color=None):
         if display:
@@ -60,29 +59,52 @@ def generate_pbar(title, number_of_elements):
 
 def encfs_command(directory1, directory2, password, reverse=False, quiet=False):
     # TODO: if not reverse, set env for xml path!!!
-    # TODO return success, err
+
+    # dirs must be absolute
+    directory1 = absolute_path(directory1)
+    directory2 = absolute_path(directory2)
+
     assert directory1 is not None and directory1.exists()
     assert directory2 is not None and directory2.exists()
-    cmd = ["encfs", "--standard", "-S", directory1, directory2]
+    cmd = ["encfs", "--standard", "-S", str(directory1), str(directory2)]
     if reverse:
         cmd.append("--reverse")
     p = Popen(cmd,
+              stdin=PIPE,
+              stdout=PIPE,
               stderr=PIPE,
               bufsize=1)
-    p.communicate(password)
-    for line in iter(p.stderr.readline, b''):
+    stdout_data, stderr_data = p.communicate(password.encode("utf-8"))
+    output = ""
+    for line in stderr_data.decode("utf8").strip().split("\n"):
+        output += line
         if not quiet:
-            logger.warning("\t !!! " + line.decode("utf8").rstrip())
-    p.communicate()
+            logger.warning("\t !!! " + line.rstrip())
+        else:
+            logger.debug("\t !!! " + line.rstrip())
+
+    if p.returncode == 0:
+        return True, output
+    else:
+        return False, output
 
 
-def backup_encfs_xml(xml_path, repository_name, backup_dir):
+def backup_encfs_xml(xml_path, repository_name):
+    # defaut xml backup location
+    # TODO: document in README
+    backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
+    if not backup_dir.exists():
+        backup_dir.mkdir(parents=True)
     new_path = Path(backup_dir, "%s.xml" % repository_name)
-    xml_path.rename(new_path)
+    try:
+        new_path.write_bytes(xml_path.read_bytes())
+        return True
+    except FileNotFoundError as err:
+        print(err)
+        return False
 
 
-def rclone_command(operation, directory=None, container=None, quiet=False):
-    # TODO return success, err
+def rclone_command(rclone_config_file, operation, directory=None, container=None, quiet=False):
     if directory is None and container is None and operation != "config":
         raise Exception("Wrong operation!")
     if operation == "config":
@@ -90,46 +112,64 @@ def rclone_command(operation, directory=None, container=None, quiet=False):
     else:
         assert directory is not None and directory.exists()
         assert container is not None
-        cmd = ["rclone", operation, "--transfers=16"]
+        cmd = ["rclone", "--config=%s" % str(rclone_config_file),
+               operation, "--transfers=16"]
+        # TODO add poption "--stats=1s" and parse to make progressbar
         if operation == "sync":
             cmd.extend([str(directory), container])
         elif operation == "copy":
             cmd.extend([container, str(directory)])
         logger.debug(cmd)
-        p = Popen(cmd, stderr=PIPE, bufsize=1)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, bufsize=1)
+        output = ""
         for line in iter(p.stderr.readline, b''):
+            output += line.decode("utf8")
             if not quiet:
                 logger.warning("\t !!! " + line.decode("utf8").rstrip())
+            else:
+                logger.debug("\t !!! " + line.decode("utf8").rstrip())
         p.communicate()
+        if p.returncode == 0:
+            return True, output
+        else:
+            return False, output
 
 
 def save_to_cloud(repository_name, backend, directory_path, encfs_mount,
-                  password, xml_backup_dir):
-    # TODO return success, log
+                  rclone_config_file, password):
+    backup_success = False
+    rclone_success = False
     # reverse encfs mount
     assert create_or_check_if_empty(encfs_mount)
     assert not is_fuse_mounted(encfs_mount)
-    encfs_command(directory_path, encfs_mount, password, reverse=True)
-    # save xml
-    backup_encfs_xml(Path(directory_path, ".encfs6.xml"), repository_name, xml_backup_dir)
-    # sync to cloud
-    rclone_command("sync", encfs_mount, "%s:%s" % (backend, repository_name))
-    # unmount
-    umount(encfs_mount)
+    success, output_encfs = encfs_command(directory_path, encfs_mount,
+                                          password, reverse=True, quiet=True)
+    if success:
+        # save xml
+        backup_success = backup_encfs_xml(Path(directory_path, ".encfs6.xml"), repository_name)
+        # sync to cloud
+        rclone_success, output_rclone = rclone_command(rclone_config_file,
+                                                       "sync",
+                                                       encfs_mount,
+                                                       "%s:%s" % (backend, repository_name),
+                                                       quiet=True)
+        # unmount
+        umount(encfs_mount)
 
-    return True, "OK"
+    return success and backup_success and rclone_success, output_encfs + output_rclone
 
 
 def restore_from_cloud(repository_name, backend, encfs_path, restore_path,
-                       password, xml_backup_dir):
+                       rclone_config_file, password, xml_backup_dir):
     # TODO return success, log
     # create encfs_path
     encfs_path = Path(encfs_path)
     assert create_or_check_if_empty(encfs_path)
     assert not is_fuse_mounted(encfs_path)
     # rclone copy
-    rclone_command("copy", encfs_path, "%s:%s" % (backend, repository_name))
+    rclone_command(rclone_config_file, "copy", encfs_path, "%s:%s" % (backend, repository_name))
     # find encfs xml
+    xml_backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
     encfs_xml_path = Path(xml_backup_dir, "%s.xml" % repository_name)
     assert encfs_xml_path.exists()
     # encfs with password to restore_path
@@ -198,7 +238,7 @@ def get_folder_size(path, excluded_extensions=None):
                stderr=STDOUT,
                bufsize=1) as p:
         for line in p.stdout:
-            size = line.split()[0].decode("utf8")
+            size = line.decode("utf8").split()[0]
     return int(size)
 
 
@@ -224,15 +264,19 @@ def list_fuse_mounts():
     return mounts
 
 
+def absolute_path(path):
+    if not path.is_absolute():
+        return Path(Path.cwd(), path)
+    else:
+        return path
+
+
 def is_fuse_mounted(abs_directory):
-    if not abs_directory.is_absolute():
-        abs_directory = Path(Path.cwd(), abs_directory)
-    return abs_directory in list_fuse_mounts()
+    return absolute_path(abs_directory) in list_fuse_mounts()
 
 
 def umount(path):
-    if not path.is_absolute():
-        path = Path(Path.cwd(), path)
+    path = absolute_path(path)
     if is_fuse_mounted(path):
         os.system("fusermount -u %s" % path)
 
@@ -258,5 +302,3 @@ def update_or_create_sync_file(path, backup_name):
     synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
     with open(path.as_posix(), 'w') as last_synced_file:
         yaml.dump(synced, last_synced_file, default_flow_style=False)
-
-

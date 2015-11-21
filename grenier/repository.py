@@ -1,9 +1,7 @@
-import os
-import time
 import sys
 import getpass
-from pathlib import Path
-import xdg.BaseDirectory
+from configparser import ConfigParser
+
 from grenier.logger import *
 from grenier.helpers import *
 
@@ -19,12 +17,13 @@ class GrenierSource(object):
 
 
 class GrenierRemote(object):
-    def __init__(self, name):
+    def __init__(self, name, rclone_config_file):
         self.name = name
         self.is_directory = False
         self.is_disk = False
         self.is_cloud = False
-        self.is_cloud_configured = False
+
+        self.rclone_config_file = rclone_config_file
 
         if Path(name).is_absolute():
             self.full_path = Path(name)
@@ -33,10 +32,17 @@ class GrenierRemote(object):
             self.full_path = Path("/run/media/%s/%s" % (getpass.getuser(), name))
             self.is_disk = True
         else:  # out of options...
+            # check if known
+            conf = ConfigParser()
+            conf.read(str(rclone_config_file))
+            self.is_cloud = self.name in conf.sections()
 
-            self.is_cloud = True
-            # TODO: parse rclone ini file to see if defined
-            # TODO: if not, call rclone config
+
+
+
+    @property
+    def is_known(self):
+        return self.is_cloud or self.is_directory or self.is_disk
 
     def __str__(self):
         if self.is_directory:
@@ -50,8 +56,9 @@ class GrenierRemote(object):
 
 
 class GrenierRepository(object):
-    def __init__(self, name, backup_dir, temp_dir, passphrase=None):
+    def __init__(self, name, backup_dir, temp_dir, rclone_config_file, passphrase=None):
         self.name = name
+        self.rclone_config_file = rclone_config_file
         self.temp_dir = temp_dir
         if not self.temp_dir.exists():
             logger.info("+ Creating folder %s" % self.temp_dir)
@@ -77,7 +84,7 @@ class GrenierRepository(object):
 
     def add_remotes(self, remote_list):
         for remote in remote_list:
-            self.remotes.append(GrenierRemote(remote))
+            self.remotes.append(GrenierRemote(remote, self.rclone_config_file))
 
     def init(self, display=True):
         if create_or_check_if_empty(self.backup_dir):
@@ -107,6 +114,11 @@ class GrenierRepository(object):
     def sync_remote(self, remote_name, display=False):
         remote_found, remote = self._find_remote(remote_name)
         if remote_found:
+            if not remote.is_known:
+                print("Create cloud config for %s?" % remote.name)
+                # TODO: if not, call rclone config
+
+
             if remote.is_cloud:
                 self.save_to_cloud(remote, display)
             elif remote.is_disk or remote.is_directory:
@@ -158,17 +170,15 @@ class GrenierRepository(object):
 
     def save_to_cloud(self, grenier_remote, display=True):
         # check if configured
-        if grenier_remote.is_cloud and grenier_remote.is_cloud_configured:
+        if grenier_remote.is_cloud:
             start = time.time()
             log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
-            # TODO!! dosser xdg
-            encfs_xml_dir = "encryption_info_dir"
             success, err_log = save_to_cloud(self.name,
                                              grenier_remote.name,
                                              self.backup_dir,
                                              self.temp_dir,
-                                             self.passphrase,
-                                             encfs_xml_dir)
+                                             self.rclone_config_file,
+                                             self.passphrase)
             if success:
                 self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
                 log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)

@@ -9,3 +9,4 @@ test
 grenier.egg-info/
 .idea/
 test_files/backup/
+test_files/rclone.conf
