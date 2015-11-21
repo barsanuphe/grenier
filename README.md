@@ -2,14 +2,16 @@
 
 ## What it is
 
-**Grenier** is a python3 wrapper around [attic](https://github.com/jborg/attic)
-or [bup](https://github.com/bup/bup), [rsync](https://rsync.samba.org/) and
-[duplicity](http://duplicity.nongnu.org/), using a configuration file to manage
-repositories.
+**Grenier** is a python3 wrapper around [bup](https://github.com/bup/bup),
+[rsync](https://rsync.samba.org/) and [rclone](http://rclone.org/), using
+a configuration file to manage repositories.
+
 
 **Grenier** can create new archives in these repositories, and also copy them to
-external drives or to [google drive](https://www.google.com/drive/) and
-[hubic](https://hubic.com).
+external drives or to cloud storage (see rclone manpage to see which are
+supported).
+Files are encrypted with [encfs](https://github.com/vgough/encfs) before being
+sent over the Internets.
 
 It can do other things too, probably. You'll just have to read on.
 
@@ -33,14 +35,12 @@ Current requirements:
 - python (3.4+)
 - python-yaml
 - python-notify2
-- python-crypto
-- python2-pyrax (hubic backend for duplicity)
 
 External binaries required:
-- [attic](https://github.com/jborg/attic)
 - [bup](https://github.com/bup/bup)
-- [duplicity](http://duplicity.nongnu.org/) (for google drive and hubic backup)
 - [rsync](https://rsync.samba.org/) (for external drives backup)
+- [rclone](http://rclone.org/) (for google drive and hubic backup)
+- [encfs](https://github.com/vgough/encfs) (for encryption before saving to cloud)
 
 ### Installation
 
@@ -83,7 +83,6 @@ the cloud (see `--last-synced`).
     Manage configuration files.
 
     --config CONFIG_FILE  Use an alternative configuration file.
-    --encrypt             Toggle encryption on the configuration file.
     -l, --list            List defined repositories.
 
     repositories:
@@ -112,8 +111,8 @@ The following commands assume the configuration file is as
 This creates timestamped archives of all sources for the `documents` repository
 (something like `2015-04-09_22h48_work` and `2015-04-09_22h53_notes`), as
 described in the configuration file. If the repository does not exist, it will
-be created. Note that if `bup` is the backend, par2 files are automatically
-generated.
+be created.
+Also, par2 files are automatically generated.
 
     grenier -n documents -b
 
@@ -127,7 +126,8 @@ drive:
 
     grenier -n all -s disk1
 
-This sends `documents` to both google drive and hubic:
+This sends `documents` to both google drive and hubic, provided "google" and
+"hubic" are previously configured rclone remotes:
 
     grenier -n documents -s google hubic
 
@@ -154,8 +154,9 @@ Restoring the latest version of the `documents` repository to a directory:
 
 How about restoring files from copies/the cloud you say?
 That will never happen. Or maybe just once. You don't need a wrapper for this.
-Just use `attic`/`bup` and/or `duplicity` directly. Chances are if that happens
-you will not mind checking out their man pages.
+Chances are if that happens you will not mind checking out a few man pages.
+
+Or maybe support for restoring will come at some point.
 
 When did you last update the copies of your repositories on that hard drive
 you dropped off at your cousin's home?
@@ -172,15 +173,10 @@ you dropped off at your cousin's home?
 
 **The user is responsible for keeping this file safe**.
 
-Optionnally, **Grenier** can encrypt this configuration file, decrypting it only
-when needed (use `--encrypt` to toggle between encrypted and plaintext modes).
-*Just don't type in your passphrase wrong*, or things might go so very wrong.
-That's why **the user is responsible for keeping this file safe**.
+Encfs uses xml files to describe how a repository is encoded.
+You probably should keep them around.
 
 Here is the general structure of how to describe a repository for **grenier**:
-
-    grenier:
-        backend: bup # or 'attic'
 
     repository_name:
         backup_dir: /path/to/repository
@@ -189,22 +185,18 @@ Here is the general structure of how to describe a repository for **grenier**:
             source1_name:
                 dir: /path/to/source
                 excluded: ["extension1", "extension2"]
+        temp_dir: /path/to/temp/folder/with/enough/disk/space/available
         backups:
-            disks: ["disk1_name", "disk2_name"]
-            googledrive: address:password@gmail.com
-            hubic: /path/to/credentials_file
+            - disk_name
+            - /absolute/path/to/backup/folder
+            - rclone_remote_name
 
 **Grenier** will automatically create a subdirectory
-`[backend]_[repository_name]` in backup_dir.
-
-If `bup` is the backend, the `passphrase` will only be used with `duplicity`.
+`bup_[repository_name]` in backup_dir.
 
 ### grenier.yaml example
 
 For example, this is a file defining two repositories:
-
-    grenier:
-        backend: attic
 
     documents:
         backup_dir: /home/user/backup
@@ -215,15 +207,19 @@ For example, this is a file defining two repositories:
                 excluded: ["log", "pdf", "epub", "azw3", "html", "zip"]
             notes:
                 dir: /home/user/documents/Notes
+        temp_dir: /tmp/documents
         backups:
-            disks: ["disk1", "disk2"]
-            googledrive: obviouslyfake:123password@gmail.com
-            hubic: /path/to/credentials_file
+            - disk1
+            - disk2
+            - google
+            - hubic
     music:
         backup_dir: /home/user/backup
         passphrase: vqrlkjmohmohiuhç_hç_hçàhlmhmj_jmlkj
         sources:
             flac_music:
                 dir: /home/user/music/flac
+        temp_dir: /tmp/music
         backups:
-            disks: ["disk1"]
+            - disk1
+            - hubic

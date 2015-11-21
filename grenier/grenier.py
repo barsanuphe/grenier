@@ -5,110 +5,52 @@ import sys
 import argparse
 import shutil
 from pathlib import Path
-
 # grenier modules
 from grenier.checks import *
 from grenier.logger import *
 from grenier.repository import *
-from grenier.crypto import *
 from grenier.helpers import *
-
 # 3rd party modules
 import yaml
 import xdg.BaseDirectory
 
 # ---CONFIG---------------------------
 CONFIG_FILE = "grenier.yaml"
-ENCRYPTION_FLAG = ".encrypted"
 
 
 # ---GRENIER---------------------------
 class Grenier(object):
-    def __init__(self, config_file, toggle_encryption=False):
+    def __init__(self, config_file):
         self.config_file = config_file
-        self.toggle_encryption = toggle_encryption
         self.repositories = []
-        self.originally_encrypted = False
-        self.encrypted_file_flag = Path(self.config_file.parent,
-                                        ENCRYPTION_FLAG)
-        self.cipher = None
-        self.reencrypted = False
-        self.backend = None
-
-    def is_config_file_encrypted(self):
-        first_check = (type(yaml.load(open(self.config_file.as_posix(),
-                                           'r'))) == str)
-        second_check = Path(self.config_file.parent, ENCRYPTION_FLAG).exists()
-        return first_check and second_check
 
     def __enter__(self):
-        if self.is_config_file_encrypted():
-            self.originally_encrypted = True
-            print("Decrypting config file.")
-            # sauvegarde du crypté
-            shutil.copyfile(self.config_file.as_posix(),
-                            "%s_backup" % self.config_file.as_posix())
-            self.cipher = AESCipher()
-            self.cipher.decrypt_file(self.config_file.as_posix())
-            if self.encrypted_file_flag.exists():
-                os.remove(self.encrypted_file_flag.as_posix())
-        else:
-            self.originally_encrypted = False
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
             print("\nGot interrupted. Trying to clean up.")
-            self.encrypt_if_necessary()
-
-    def encrypt_if_necessary(self):
-        if not self.reencrypted:
-            # encrypt config if necessary
-            if (not self.originally_encrypted and self.toggle_encryption) or \
-               (self.originally_encrypted and not self.toggle_encryption):
-                logger.info("Encrypting config file.")
-                if self.cipher is None:
-                    self.cipher = AESCipher()
-                self.cipher.encrypt_file(self.config_file.as_posix())
-                open(self.encrypted_file_flag.as_posix(), 'a').close()
-                self.reencrypted = True
 
     def open_config(self):
         if self.config_file.exists():
             try:
-                config = yaml.load(open(self.config_file.as_posix(), 'r'))
-                self.backend = config["grenier"]["backend"]
-
-                for p in config:
-                    if p == "grenier":
-                        continue
-                    backup_dir = Path(config[p]["backup_dir"],
-                                      "%s_%s"%(self.backend, p))
-                    if self.backend == "attic":
+                with open(str(self.config_file), 'r') as f:
+                    config = yaml.load(f)
+                    for p in config:
+                        backup_dir = Path(config[p]["backup_dir"], "bup_%s" % p)
+                        temp_dir = Path(config[p]["temp_dir"], "/tmp/bup_%s" % p)
                         bp = GrenierRepository(p,
-                                           backup_dir,
-                                           config[p].get("passphrase", None))
-                    elif self.backend == "bup":
-                        bp = GrenierBupRepository(p,
-                                           backup_dir,
-                                           config[p].get("passphrase", None))
-                    else:
-                        raise Exception("Unknown backend %s"%self.backend)
+                                               backup_dir,
+                                               temp_dir,
+                                               config[p].get("passphrase", None))
+                        sources_dict = config[p]["sources"]
+                        for s in sources_dict:
+                            bp.add_source(s,
+                                          sources_dict[s]["dir"],
+                                          sources_dict[s].get("excluded", []))
 
-                    sources_dict = config[p]["sources"]
-                    for s in sources_dict:
-                        bp.add_source(s,
-                                      sources_dict[s]["dir"],
-                                      sources_dict[s].get("excluded", []))
-                    remotes = config[p].get("backups", {})
-                    if "googledrive" in remotes:
-                        bp.add_google_drive_backend(remotes["googledrive"])
-                    if "hubic" in remotes:
-                        bp.add_hubic_backend()
-                    if "disks" in remotes:
-                        bp.add_disks(remotes["disks"])
-                    self.repositories.append(bp)
-                self.encrypt_if_necessary()
+                        bp.add_remotes(config[p].get("remotes", []))
+                        self.repositories.append(bp)
                 return True
             except Exception as err:
                 print("Invalid configuration file!!")
@@ -127,7 +69,7 @@ class Grenier(object):
             last_synced = {}
 
         for r in self.repositories:
-            if r.just_synced != []:
+            if r.just_synced:
                 if r.name not in last_synced:
                     last_synced[r.name] = {}
                 for sync in r.just_synced:
@@ -136,7 +78,8 @@ class Grenier(object):
                   open(path.as_posix(), 'w'),
                   default_flow_style=False)
 
-    def show_last_synced(self):
+    @staticmethod
+    def show_last_synced():
         data_path = xdg.BaseDirectory.save_data_path("grenier")
         path = Path(data_path, "last_synced.yml")
         if path.exists():
@@ -154,7 +97,7 @@ def main():
     log("\n# # # G R E N I E R # # #", color="boldwhite")
 
     parser = argparse.ArgumentParser(description='Grenier.\nA wrapper around '
-                                     'attic/bup, duplicity to back stuff up.')
+                                                 'bup, rclone, rsync, encfs to back stuff up.')
 
     group_config = parser.add_argument_group('Configuration',
                                              'Manage configuration files.')
@@ -164,18 +107,12 @@ def main():
                               metavar="CONFIG_FILE",
                               nargs=1,
                               help='Use an alternative configuration file.')
-    group_config.add_argument('--encrypt',
-                              dest='encrypt',
+    group_config.add_argument('-l',
+                              '--list',
+                              dest='list_repositories',
                               action='store_true',
                               default=False,
-                              help='Toggle encryption on the configuration '
-                                   'file.')
-    group_config.add_argument('-l',
-                                '--list',
-                                dest='list_repositories',
-                                action='store_true',
-                                default=False,
-                                help='List defined repositories.')
+                              help='List defined repositories.')
 
     group_projects = parser.add_argument_group('Repositories', 'Manage repositories.')
     group_projects.add_argument('-n',
@@ -228,18 +165,18 @@ def main():
     args = parser.parse_args()
     logger.debug(args)
 
-    if args.names is None and args.last_synced is False and args.encrypt is False and args.list_repositories is False:
+    if args.names is None and args.last_synced is False and args.list_repositories is False:
         log("No project selected. Nothing can be done.", color="red", save=False)
         sys.exit(-1)
 
     if args.config and Path(args.config[0]).exists():
-        configuration_file = args.config[0]
+        configuration_file = Path(args.config[0])
     else:
         config_path = xdg.BaseDirectory.save_config_path("grenier")
         configuration_file = Path(config_path, CONFIG_FILE)
         try:
             assert configuration_file.exists()
-        except:
+        except AssertionError:
             log("No configuration file found at %s" % configuration_file, color="red", save=False)
             sys.exit(-1)
 
@@ -249,7 +186,7 @@ def main():
             assert len(args.names) == 1
         except AssertionError:
             log("One project (and one only) must be specified with --name,"
-                  " and the mountpoint must be an existing directory.", color="red", save=False)
+                " and the mountpoint must be an existing directory.", color="red", save=False)
             sys.exit(-1)
 
     if args.restore:
@@ -262,47 +199,46 @@ def main():
     # This is where stuff actually gets done.
     overall_start = time.time()
     try:
-        with Grenier(configuration_file, args.encrypt) as g:
+        with Grenier(configuration_file) as g:
             if not g.open_config():
                 log("Invalid configuration. Exiting.", color="red", save=False)
-                if g.originally_encrypted:
-                    print("Bad encryption passphrase maybe?"
-                          "Manually restore the backup.")
                 sys.exit(-1)
             for p in g.repositories:
+
                 if args.list_repositories:
                     print(p)
+
                 if args.names is not None and p.name in args.names or args.names == ["all"]:
                     log("\n+ %s +\n" % p.name, color="boldblue")
                     log(p, display=False)
 
                     if args.check:
                         p.check_and_repair()
+
                     if args.backup:
                         p.backup()
+
                     if args.backup_target:
-                        if "google" in args.backup_target or \
-                           args.backup_target == ["all"]:
-                            p.save_to_google_drive()
-                        if "hubic" in args.backup_target or \
-                           args.backup_target == ["all"]:
-                            p.save_to_hubic()
-                        # finding what drives to back up
+                        # finding what remotes to back up
                         if args.backup_target == ["all"]:
-                            drives_to_backup = p.backup_disks
+                            remotes_to_backup = p.remotes
                         else:
-                            drives_to_backup = [d for d in args.backup_target
-                                                if d in p.backup_disks]
-                        for drive in drives_to_backup:
-                            p.save_to_disk(drive)
+                            remote_names = [el.name for el in p.remotes]
+                            remotes_to_backup = [d for d in args.backup_target
+                                                 if d in remote_names]
+                        for remote in remotes_to_backup:
+                            p.sync_remote(remote)
                         g.export_last_sync()
+
                     if args.fuse:
                         if is_fuse_mounted(args.fuse[0]):
                             p.unfuse(args.fuse[0])
                         else:
                             p.fuse(args.fuse[0])
+
                     if args.restore:
                         p.restore(args.restore[0])
+
             if args.last_synced:
                 g.show_last_synced()
 
@@ -315,6 +251,7 @@ def main():
         log("\n!! Got interrupted after %.2fs." % overall_time, color="red")
         notify_this("!! Grenier was killed after %.2fs." % overall_time)
         sys.exit(-1)
+
 
 if __name__ == "__main__":
     main()

@@ -1,23 +1,17 @@
 """Grenier.
-A wrapper around attic/bup, rsync and duplicity.
+A wrapper around bup, encfs, rsync, and rclone.
 """
 
-# Always prefer setuptools over distutils
-from setuptools import setup, find_packages
-# To use a consistent encoding
-from codecs import open
-from os import path
-
-#here = path.abspath(path.dirname(__file__))
+from setuptools import setup
 
 setup(
     name='grenier',
-    version='0.1.0',
-    description='A wrapper around attic/bup, rsync and duplicity.',
-    #long_description=long_description,
+    version='0.2.0',
+    description='A wrapper around bup, rsync, rclone and encfs.',
+    # long_description=long_description,
     url='https://github.com/barsanuphe/grenier',
     author='barsanuphe',
-    author_email='monadressepublique@gmail.com',
+    author_email='mon.adresse.publique@gmail.com',
     license='GPLv3+',
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -26,28 +20,24 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Topic :: System :: Archiving :: Backup',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
     ],
-    keywords='backup attic configuration wrapper',
+    keywords='backup bup configuration wrapper',
     packages=['grenier'],
 
-    # note: attic has unresolved dependancies (blosc) for now
-    install_requires=['pyrax', 'pyyaml', 'notify2', 'crypto', 'progressbar'],# , 'xdg'],
+    install_requires=['pyyaml', 'notify2', 'progressbar', 'pyxdg'],
 
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.
-    #package_data={
-        #'sample': ['package_data.dat'],
-    #},
+    # package_data={
+    # 'sample': ['package_data.dat'],
+    # },
 
-    ## To provide executable scripts, use entry points in preference to the
-    ## "scripts" keyword. Entry points provide cross-platform support and allow
-    ## pip to create the appropriate form of executable for the target platform.
+    # main
     entry_points={
         'console_scripts': [
             'grenier=grenier:main',
         ],
     },
-
 )

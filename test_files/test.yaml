@@ -1,0 +1,14 @@
+test1:
+    backup_dir: test_files/backup
+    passphrase: test1_passphrase
+    sources:
+        folder1:
+            dir: test_files/folder1
+            excluded: ["ignored"]
+        folder2:
+            dir: test_files/folder2
+    temp_dir: /home/b/temp
+    remotes:
+        - disk1_name
+        - /absolute/path
+        - cloud_container_name

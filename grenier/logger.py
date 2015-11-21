@@ -8,18 +8,19 @@ def set_up_logger(program):
     data_path = xdg.BaseDirectory.save_data_path(program)
     log_path = Path(data_path,
                     "log",
-                    "%s_%s.log" % (time.strftime("%Y-%m-%d_%Hh%M"), program))
+                    "{date}_{program}.log".format(date=time.strftime("%Y-%m-%d_%Hh%M"),
+                                                  program=program))
     if not log_path.parent.exists():
         log_path.parent.mkdir(parents=True)
-    logger = logging.getLogger(program)
-    logger.setLevel(logging.DEBUG)
+    program_logger = logging.getLogger(program)
+    program_logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
-    logger.addHandler(ch)
+    program_logger.addHandler(ch)
 
     fh = logging.FileHandler(log_path.as_posix())
     fh.setLevel(logging.DEBUG)
-    logger.addHandler(fh)
-    return logger
+    program_logger.addHandler(fh)
+    return program_logger
 
 logger = set_up_logger("grenier")
