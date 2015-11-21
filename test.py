@@ -1,4 +1,5 @@
 import unittest
+import getpass
 from grenier.helpers import *
 from grenier.grenier import Grenier
 
@@ -69,19 +70,64 @@ class TestClass(unittest.TestCase):
             self.assertEqual(len(fuse_contents), 0)
             self.assertFalse(is_fuse_mounted(r.temp_dir))
 
-    def test_sync_to_disk(self):
-        pass
+    def test_5_check(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            out = r.check_and_repair(display=False)
+            self.assertEqual(out, [])
+            # TODO what else to check?
+
+    def test_6_sync_to_folder(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            self.assertFalse(r.sync_remote("pof", display=False))
+            remote_path = Path("/tmp/grenier")
+            self.assertTrue(r.sync_remote(str(remote_path), display=False))
+            self.assertTrue(remote_path.exists())
+            contents = [str(el) for el in remote_path.rglob("*")]
+            self.assertNotEqual(len(contents), 0)
+            # TODO other checks?
+            # check sync yaml
+            last_synced_yaml = Path(remote_path, "last_synced.yaml")
+            self.assertTrue(last_synced_yaml.exists())
+            # TODO check contents?
+
+    def test_7_sync_to_disk(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            self.assertFalse(r.sync_remote("pof", display=False))
+
+            # needs external disk connected, skip if not present
+            remote_path = Path("/run/media/%s/%s" % (getpass.getuser(), "DISK1"))
+            if remote_path.exists():
+                self.assertTrue(r.sync_remote("DISK1", display=False))
+
+                contents = [str(el) for el in remote_path.rglob("*")]
+                self.assertNotEqual(len(contents), 0)
+
+                # TODO other checks?
+                # check sync yaml
+                last_synced_yaml = Path(remote_path, "last_synced.yaml")
+                self.assertTrue(last_synced_yaml.exists())
+                # TODO check contents?
+
+                # TODO cleanup
+
+    def test_8_sync_to_hubic(self):
+        # needs rclone config "test_cloud_container"
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            self.assertFalse(r.sync_remote("pof", display=False))
+
+            found, remote = r._find_remote("test_cloud_container")
+            self.assertTrue(found)
+            self.assertTrue(remote.is_cloud)
+            self.assertTrue(remote.is_cloud_configured)
+
+            self.assertTrue(r.sync_remote("test_cloud_container", display=True))
 
     def test_sync_to_gdrive(self):
         pass
-
-    def test_sync_to_hubic(self):
-        pass
-
-    def test_check(self):
-        pass
-
-
 
     def test_restore(self):
         pass

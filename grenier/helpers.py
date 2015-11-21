@@ -168,6 +168,7 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
 
 def rsync_command(cmd, quiet=False):
     logger.debug(cmd)
+    # TODO: return success, log + quiet stdout if quiet=True
     p = Popen(["rsync", "-a", "--delete", "--human-readable",
                "--info=progress2", "--force"] + cmd,
               stderr=PIPE,
@@ -252,8 +253,10 @@ def update_or_create_sync_file(path, backup_name):
     if not path.exists():
         synced = {}
     else:
-        synced = yaml.load(open(path.as_posix(), 'r'))
+        with open(path.as_posix(), 'r') as previous_version:
+            synced = yaml.load(previous_version)
     synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
-    yaml.dump(synced, open(path.as_posix(), 'w'), default_flow_style=False)
+    with open(path.as_posix(), 'w') as last_synced_file:
+        yaml.dump(synced, last_synced_file, default_flow_style=False)
 
 

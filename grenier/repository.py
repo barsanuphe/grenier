@@ -4,7 +4,6 @@ import sys
 import getpass
 from pathlib import Path
 import xdg.BaseDirectory
-
 from grenier.logger import *
 from grenier.helpers import *
 
@@ -34,6 +33,7 @@ class GrenierRemote(object):
             self.full_path = Path("/run/media/%s/%s" % (getpass.getuser(), name))
             self.is_disk = True
         else:  # out of options...
+
             self.is_cloud = True
             # TODO: parse rclone ini file to see if defined
             # TODO: if not, call rclone config
@@ -86,7 +86,7 @@ class GrenierRepository(object):
 
     def check_and_repair(self, display=True):
         log("+ Checking and repairing repository.", color="yellow", display=display)
-        self._fsck(generate=False)
+        return self._fsck(generate=False, display=display)
 
     def backup(self, check_before=False, display=True):
         starting_time = time.time()
@@ -98,22 +98,25 @@ class GrenierRepository(object):
             color="green", display=display)
         return total_number_of_files
 
-    def sync_remote(self, remote_name):
-        remote_found = False
+    def _find_remote(self, remote_name):
         for remote in self.remotes:
             if remote.name == remote_name:
-                remote_found = True
-                # TODO sync according to type !!!!!
-                if remote.is_cloud:
-                    self.save_to_cloud(remote)
-                elif remote.is_disk or remote.is_directory:
-                    self.save_to_folder(remote)
-                else:
-                    log("Unknown remote %s, maybe unmounted disk. "
-                        "Not doing anything." % remote.name, color="red")
-                break
-        if not remote_found:
-            print("Remote %s not found!!!" % remote_name)
+                return True, remote
+        return False, None
+
+    def sync_remote(self, remote_name, display=False):
+        remote_found, remote = self._find_remote(remote_name)
+        if remote_found:
+            if remote.is_cloud:
+                self.save_to_cloud(remote, display)
+            elif remote.is_disk or remote.is_directory:
+                self.save_to_folder(remote, display)
+            else:
+                log("Unknown remote %s, maybe unmounted disk. "
+                    "Not doing anything." % remote.name, color="red", display=display)
+        else:
+            log("Remote %s not found!!!" % remote_name, color="red", display=display)
+        return remote_found  # TODO and save success
 
     def restore(self, target):
         if not create_or_check_if_empty(target):
@@ -140,24 +143,24 @@ class GrenierRepository(object):
                 color="yellow", display=display)
             umount(self.fuse_dir)
 
-    def save_to_folder(self, grenier_remote):
-        log("+ Syncing with %s." % grenier_remote.name, color="yellow")
+    def save_to_folder(self, grenier_remote, display=True):
+        log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
         if not grenier_remote.full_path.exists():
             grenier_remote.full_path.mkdir(parents=True)
         start = time.time()
         rsync_command([str(self.backup_dir), str(grenier_remote.full_path)])
         update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
                                    self.name)
-        log("+ Synced in %.2fs." % (time.time() - start), color="green")
+        log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
         self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
         # TODO return rsync success
         return True
 
-    def save_to_cloud(self, grenier_remote):
+    def save_to_cloud(self, grenier_remote, display=True):
         # check if configured
-        if grenier_remote.is_cloud and grenier_remote.is_configured:
+        if grenier_remote.is_cloud and grenier_remote.is_cloud_configured:
             start = time.time()
-            log("+ Syncing with %s." % grenier_remote.name, color="yellow")
+            log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
             # TODO!! dosser xdg
             encfs_xml_dir = "encryption_info_dir"
             success, err_log = save_to_cloud(self.name,
@@ -167,10 +170,11 @@ class GrenierRepository(object):
                                              self.passphrase,
                                              encfs_xml_dir)
             if success:
-                self.just_synced.append({grenier_remote.name : time.strftime("%Y-%m-%d_%Hh%M")})
-                log("+ Synced in %.2fs." % (time.time() - start), color="green")
+                self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
+                log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
             else:
-                log("!! Error! %s" % err_log, color="red")
+                log("!! Error! %s" % err_log, color="red", display=display)
+            return success
 
     def restore_from_google_drive(self, target):
         if not create_or_check_if_empty(target):
@@ -257,10 +261,10 @@ class GrenierRepository(object):
         else:
             cmd.append("-r")
             title = "Checking: "
-        bup_command(cmd, self.backup_dir, quiet=not display,
-                    number_of_items=len(packs),
-                    pbar_title=title,
-                    save_output=False)
+        return bup_command(cmd, self.backup_dir, quiet=not display,
+                           number_of_items=len(packs),
+                           pbar_title=title,
+                           save_output=False)
 
     def save(self, display=True):
         original_size = get_folder_size(self.backup_dir)

@@ -9,6 +9,6 @@ test1:
             dir: test_files/folder2
     temp_dir: test_files/fuse
     remotes:
-        - disk1_name
-        - /absolute/path
-        - cloud_container_name
+        - DISK1
+        - /tmp/grenier
+        - test_cloud_container
