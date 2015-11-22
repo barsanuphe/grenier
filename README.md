@@ -186,6 +186,7 @@ Here is the general structure of how to describe a repository for **grenier**:
                 dir: /path/to/source
                 excluded: ["extension1", "extension2"]
         temp_dir: /path/to/temp/folder/with/enough/disk/space/available
+        rclone_config_file: /optional/path/to/rclone/config
         backups:
             - disk_name
             - /absolute/path/to/backup/folder
@@ -193,6 +194,8 @@ Here is the general structure of how to describe a repository for **grenier**:
 
 **Grenier** will automatically create a subdirectory
 `bup_[repository_name]` in backup_dir.
+
+`rclone_config_file` defaults to ~/.rclone.conf if not specified.
 
 ### grenier.yaml example
 

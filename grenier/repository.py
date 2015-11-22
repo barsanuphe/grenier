@@ -110,11 +110,7 @@ class GrenierRepository(object):
 
     def sync_remote(self, remote_name, display=False):
         remote_found, remote = self._find_remote(remote_name)
-        if remote_found:
-            if not remote.is_known:
-                print("Create cloud config for %s?" % remote.name)
-                # TODO: if not, call rclone config
-
+        if remote_found and remote.is_known:
             if remote.is_cloud:
                 self.save_to_cloud(remote, display)
             elif remote.is_disk or remote.is_directory:
@@ -122,9 +118,13 @@ class GrenierRepository(object):
             else:
                 log("Unknown remote %s, maybe unmounted disk. "
                     "Not doing anything." % remote.name, color="red", display=display)
+        elif remote_found and not remote.is_known:
+            log("Rclone config for remote %s not found!!!" % remote_name,
+                color="red", display=display)
         else:
             log("Remote %s not found!!!" % remote_name, color="red", display=display)
-        return remote_found  # TODO and save success
+
+        return remote_found and remote.is_known  # TODO and save success
 
     def restore(self, target):
         if not create_or_check_if_empty(target):

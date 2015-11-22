@@ -12,7 +12,7 @@ class TestClass(unittest.TestCase):
     def tearDown(self):
         del self.grenier
 
-    def test_1_open_config(self):
+    def test_010_open_config(self):
         self.assertTrue(self.grenier.open_config())
         self.assertIsNotNone(self.grenier.repositories)
         self.assertEqual(len(self.grenier.repositories), 1)
@@ -36,9 +36,9 @@ class TestClass(unittest.TestCase):
                 self.assertListEqual(source.excluded_extensions, [])
 
         # remotes
-        self.assertEqual(len(test_repo.remotes), 4)
+        self.assertEqual(len(test_repo.remotes), 5)
 
-    def test_2_save(self):
+    def test_020_save(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             number_of_files = r.backup(display=False)
@@ -46,7 +46,7 @@ class TestClass(unittest.TestCase):
             repo_contents = [str(el) for el in r.backup_dir.rglob("*")]
             self.assertNotEqual(len(repo_contents), 0)
 
-    def test_3_fuse(self):
+    def test_030_fuse(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             r.fuse(str(r.temp_dir), display=False)
@@ -62,7 +62,7 @@ class TestClass(unittest.TestCase):
                     self.assertTrue("folder2/latest/test3.txt" in fuse_contents)
                     self.assertTrue("folder2/latest/test4.ignored" in fuse_contents)
 
-    def test_4_unfuse(self):
+    def test_040_unfuse(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             r.unfuse(r.temp_dir, display=False)
@@ -70,14 +70,14 @@ class TestClass(unittest.TestCase):
             self.assertEqual(len(fuse_contents), 0)
             self.assertFalse(is_fuse_mounted(r.temp_dir))
 
-    def test_5_check(self):
+    def test_050_check(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             out = r.check_and_repair(display=False)
             self.assertEqual(out, [])
             # TODO what else to check?
 
-    def test_6_sync_to_folder(self):
+    def test_060_sync_to_folder(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
@@ -92,7 +92,7 @@ class TestClass(unittest.TestCase):
             self.assertTrue(last_synced_yaml.exists())
             # TODO check contents?
 
-    def test_7_sync_to_disk(self):
+    def test_070_sync_to_disk(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
@@ -113,7 +113,7 @@ class TestClass(unittest.TestCase):
 
                 # TODO cleanup
 
-    def test_8_sync_to_hubic(self):
+    def test_080_sync_to_hubic(self):
         # needs rclone config "test_cloud_container"
         self.grenier.open_config()
         for r in self.grenier.repositories:
@@ -132,7 +132,7 @@ class TestClass(unittest.TestCase):
 
             # TODO cleanup: rclone purge test_cloud_container:test1?
 
-    def test_9_sync_to_gdrive(self):
+    def test_090_sync_to_gdrive(self):
         # needs rclone config "test_google_cloud"
         self.grenier.open_config()
         for r in self.grenier.repositories:
@@ -142,7 +142,7 @@ class TestClass(unittest.TestCase):
             self.assertTrue(found)
             self.assertTrue(remote.is_known)
             self.assertTrue(remote.is_cloud)
-    
+
             self.assertTrue(r.sync_remote("test_google_cloud", display=False))
             # testing encfs xml backup
             xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
@@ -150,6 +150,11 @@ class TestClass(unittest.TestCase):
             # TODO test remote file size vs local?
 
             # TODO cleanup: rclone purge test_google_cloud:test1?
+
+    def test_100_sync_to_undefined_cloud(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            self.assertFalse(r.sync_remote("fake_cloud", display=False))
 
     def test_restore(self):
         pass

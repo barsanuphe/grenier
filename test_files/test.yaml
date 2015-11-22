@@ -14,3 +14,4 @@ test1:
         - /tmp/grenier
         - test_cloud_container
         - test_google_cloud
+        - fake_cloud
