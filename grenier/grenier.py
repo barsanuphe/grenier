@@ -231,13 +231,14 @@ def main():
                         g.export_last_sync()
 
                     if args.fuse:
-                        if is_fuse_mounted(args.fuse[0]):
-                            p.unfuse(args.fuse[0])
+                        target = Path(args.fuse[0])
+                        if is_fuse_mounted(target):
+                            p.unfuse(target)
                         else:
-                            p.fuse(args.fuse[0])
+                            p.fuse(target)
 
                     if args.restore:
-                        p.restore(args.restore[0])
+                        p.restore(Path(args.restore[0]))
 
             if args.last_synced:
                 g.show_last_synced()

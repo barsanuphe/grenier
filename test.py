@@ -1,5 +1,7 @@
 import unittest
 import getpass
+import shutil
+import sys
 from grenier.helpers import *
 from grenier.grenier import Grenier
 
@@ -49,7 +51,7 @@ class TestClass(unittest.TestCase):
     def test_030_fuse(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
-            r.fuse(str(r.temp_dir), display=False)
+            r.fuse(r.temp_dir, display=False)
             fuse_contents = [str(el.relative_to(r.temp_dir)) for el in r.temp_dir.rglob("*")]
             self.assertNotEqual(len(fuse_contents), 0)
             for s in r.sources:
@@ -73,8 +75,9 @@ class TestClass(unittest.TestCase):
     def test_050_check(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
-            out = r.check_and_repair(display=False)
-            self.assertEqual(out, [])
+            success, out = r.check_and_repair(display=False)
+            self.assertTrue(success)
+            self.assertEqual(out, "")
             # TODO what else to check?
 
     def test_060_sync_to_folder(self):
@@ -91,6 +94,9 @@ class TestClass(unittest.TestCase):
             last_synced_yaml = Path(remote_path, "last_synced.yaml")
             self.assertTrue(last_synced_yaml.exists())
             # TODO check contents?
+
+            # TODO cleanup
+
 
     def test_070_sync_to_disk(self):
         self.grenier.open_config()
@@ -156,8 +162,34 @@ class TestClass(unittest.TestCase):
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("fake_cloud", display=False))
 
-    def test_restore(self):
-        pass
+    def test_110_restore_files_from_repository(self):
+        self.grenier.open_config()
+        restore_path = Path("test_files/restore")
+        for r in self.grenier.repositories:
+            success, output = r.restore(restore_path, display=False)
+            self.assertTrue(success)
+            self.assertEqual(output, "")
+
+            # testing restored files
+            restored = [str(el.relative_to(restore_path)) for el in restore_path.rglob("*")]
+            self.assertIn("folder1", restored)
+            self.assertIn("folder2", restored)
+            self.assertIn("folder1/test1.txt", restored)
+            self.assertIn("folder2/test3.txt", restored)
+            self.assertIn("folder2/test4.ignored", restored)
+            # testing contents of one file
+            self.assertEqual(Path(restore_path, "folder1", "test1.txt").read_text(), "1234567890")
+
+            # cleanup
+            shutil.rmtree(str(restore_path))
+
+    # def test_110_restore_files_from_remote_folder(self):
+    #     self.grenier.open_config()
+    #     for r in self.grenier.repositories:
+    #         remote_path = Path("/tmp/grenier", r.name)
+    #
+    # def test_120_restore_files_from_remote_cloud(self):
+    #     pass
 
 if __name__ == '__main__':
     unittest.main()

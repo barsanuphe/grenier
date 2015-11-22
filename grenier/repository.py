@@ -1,7 +1,6 @@
 import sys
 import getpass
 from configparser import ConfigParser
-
 from grenier.logger import *
 from grenier.helpers import *
 
@@ -126,22 +125,28 @@ class GrenierRepository(object):
 
         return remote_found and remote.is_known  # TODO and save success
 
-    def restore(self, target):
+    def restore(self, target, display=True):
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
-                " not doing anything." % target, color="red")
+                " not doing anything." % target, color="red", display=display)
             sys.exit(-1)
         for source in self.sources:
-            log("+ Restoring %s to %s." % (source.name, target), color="yellow")
-            bup_command(["restore", "-C", target, "/%s/latest/." % source.name],
-                        self.backup_dir,
-                        quiet=False)
+            sub_target = Path(target, source.name)
+            log("+ Restoring %s to %s." % (source.name, sub_target), color="yellow",
+                display=display)
+            success, output = bup_command(
+                ["restore", "-C", str(sub_target), "/%s/latest/." % source.name],
+                self.backup_dir,
+                quiet=False)
+        if not success:
+            log("!!! %s" % output, color="red", display=display)
+        return success, output
 
     def fuse(self, folder, display=True):
         if create_or_check_if_empty(folder):
             self.fuse_dir = folder
             log("+ Mounting repository to %s." % folder, color="yellow", display=display)
-            bup_command(["fuse", folder], self.backup_dir, quiet=True)
+            bup_command(["fuse", str(folder)], self.backup_dir, quiet=True)
 
     def unfuse(self, folder=None, display=True):
         if folder is not None:
@@ -156,7 +161,7 @@ class GrenierRepository(object):
         if not grenier_remote.full_path.exists():
             grenier_remote.full_path.mkdir(parents=True)
         start = time.time()
-        rsync_command([str(self.backup_dir), str(grenier_remote.full_path)])
+        rsync_command([str(self.backup_dir), str(grenier_remote.full_path)], quiet=not display)
         update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
                                    self.name)
         log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
@@ -249,8 +254,9 @@ class GrenierRepository(object):
         if source.excluded_extensions:
             cmd.append(r"--exclude-rx=^.*\.(%s)$" % r"|".join(source.excluded_extensions))
         cmd.append(str(source.target_dir))
-        output = bup_command(cmd, self.backup_dir, quiet=True)
-        return len(output)
+        success, output = bup_command(cmd, self.backup_dir, quiet=True)
+        number_of_files = len(output.strip().split("\n"))
+        return number_of_files
 
     def _fsck(self, generate=False, display=True):
         if generate:
@@ -289,15 +295,16 @@ class GrenierRepository(object):
         log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
         number_of_files = self._index(source, display)
         log("+ Saving.", color="yellow", display=display)
-        bup_command(["save", "-vv",
-                     source.target_dir.as_posix(),
-                     "-n", source.name,
-                     '--strip-path=%s' % source.target_dir.as_posix(),
-                     '-9'],
-                    self.backup_dir,
-                    quiet=not display,
-                    number_of_items=number_of_files,
-                    pbar_title="Saving: ",
-                    save_output=False)
-        self._fsck(generate=True, display=display)
+        # TODO return success
+        success, output = bup_command(["save", "-vv",
+                                       source.target_dir.as_posix(),
+                                       "-n", source.name,
+                                       '--strip-path=%s' % source.target_dir.as_posix(),
+                                       '-9'],
+                                      self.backup_dir,
+                                      quiet=not display,
+                                      number_of_items=number_of_files,
+                                      pbar_title="Saving: ",
+                                      save_output=False)
+        fsck_success, fsck_output = self._fsck(generate=True, display=display)
         return number_of_files

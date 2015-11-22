@@ -178,10 +178,9 @@ def restore_from_cloud(repository_name, backend, encfs_path, restore_path,
 
 def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
                 pbar_title="", save_output=True):
-    # TODO return success, err
     logger.debug(cmd)
     env_dict = {"BUP_DIR": str(backup_directory)}
-    output = []
+    output = ""
 
     if number_of_items and not quiet:
         cpt = 0
@@ -200,19 +199,25 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
             elif not quiet:
                 logger.info("\t" + line.decode("utf8").rstrip())
             if save_output:
-                output.append(line.decode("utf8").rstrip())
+                output += line.decode("utf8")
     if number_of_items and not quiet:
         pbar.finish()
-    return output
+    if p.returncode == 0:
+        return True, output
+    else:
+        return False, output
 
 
 def rsync_command(cmd, quiet=False):
-    logger.debug(cmd)
-    # TODO: return success, log + quiet stdout if quiet=True
-    p = Popen(["rsync", "-a", "--delete", "--human-readable",
-               "--info=progress2", "--force"] + cmd,
-              stderr=PIPE,
-              bufsize=1)
+    complete_cmd = ["rsync", "-a", "--delete", "--human-readable",
+                    "--info=progress2", "--force"] + cmd
+    logger.debug(complete_cmd)
+    # TODO: return success, log
+    if quiet:
+        p = Popen(complete_cmd, stdout=PIPE, stderr=PIPE, bufsize=1)
+    else:
+        p = Popen(complete_cmd, stderr=PIPE, bufsize=1)
+
     for line in iter(p.stderr.readline, b''):
         if not quiet:
             logger.warning("\t !!! " + line.decode("utf8").rstrip())
@@ -243,12 +248,11 @@ def get_folder_size(path, excluded_extensions=None):
 
 
 def create_or_check_if_empty(target):
-    t = Path(target)
-    if not t.exists():
-        t.mkdir(parents=True)
+    if not target.exists():
+        target.mkdir(parents=True)
         return True
     else:
-        return list(t.glob('*')) == []
+        return list(target.glob('*')) == []
 
 
 def list_fuse_mounts():
