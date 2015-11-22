@@ -37,9 +37,6 @@ class GrenierRemote(object):
             conf.read(str(rclone_config_file))
             self.is_cloud = self.name in conf.sections()
 
-
-
-
     @property
     def is_known(self):
         return self.is_cloud or self.is_directory or self.is_disk
@@ -117,7 +114,6 @@ class GrenierRepository(object):
             if not remote.is_known:
                 print("Create cloud config for %s?" % remote.name)
                 # TODO: if not, call rclone config
-
 
             if remote.is_cloud:
                 self.save_to_cloud(remote, display)

@@ -36,7 +36,7 @@ class TestClass(unittest.TestCase):
                 self.assertListEqual(source.excluded_extensions, [])
 
         # remotes
-        self.assertEqual(len(test_repo.remotes), 3)
+        self.assertEqual(len(test_repo.remotes), 4)
 
     def test_2_save(self):
         self.grenier.open_config()
@@ -130,10 +130,26 @@ class TestClass(unittest.TestCase):
             self.assertTrue(xml.exists())
             # TODO test remote file size vs local?
 
-            # cleanup: rclone purge test_cloud_container:test1?
+            # TODO cleanup: rclone purge test_cloud_container:test1?
 
-    def test_sync_to_gdrive(self):
-        pass
+    def test_9_sync_to_gdrive(self):
+        # needs rclone config "test_google_cloud"
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            self.assertFalse(r.sync_remote("pof", display=False))
+
+            found, remote = r._find_remote("test_google_cloud")
+            self.assertTrue(found)
+            self.assertTrue(remote.is_known)
+            self.assertTrue(remote.is_cloud)
+    
+            self.assertTrue(r.sync_remote("test_google_cloud", display=False))
+            # testing encfs xml backup
+            xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
+            self.assertTrue(xml.exists())
+            # TODO test remote file size vs local?
+
+            # TODO cleanup: rclone purge test_google_cloud:test1?
 
     def test_restore(self):
         pass
