@@ -196,6 +196,8 @@ Here is the general structure of how to describe a repository for **grenier**:
 `bup_[repository_name]` in backup_dir.
 
 `rclone_config_file` defaults to ~/.rclone.conf if not specified.
+**Grenier** does not configure rclone backends for you.
+You'll have to do this on your lonesome, before running **grenier**.
 
 ### grenier.yaml example
 

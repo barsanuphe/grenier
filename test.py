@@ -38,7 +38,7 @@ class TestClass(unittest.TestCase):
                 self.assertListEqual(source.excluded_extensions, [])
 
         # remotes
-        self.assertEqual(len(test_repo.remotes), 5)
+        self.assertEqual(len(test_repo.remotes), 4)
 
     def test_020_save(self):
         self.grenier.open_config()
@@ -97,7 +97,6 @@ class TestClass(unittest.TestCase):
 
             # TODO cleanup
 
-
     def test_070_sync_to_disk(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
@@ -138,25 +137,6 @@ class TestClass(unittest.TestCase):
 
             # TODO cleanup: rclone purge test_cloud_container:test1?
 
-    def test_090_sync_to_gdrive(self):
-        # needs rclone config "test_google_cloud"
-        self.grenier.open_config()
-        for r in self.grenier.repositories:
-            self.assertFalse(r.sync_remote("pof", display=False))
-
-            found, remote = r._find_remote("test_google_cloud")
-            self.assertTrue(found)
-            self.assertTrue(remote.is_known)
-            self.assertTrue(remote.is_cloud)
-
-            self.assertTrue(r.sync_remote("test_google_cloud", display=False))
-            # testing encfs xml backup
-            xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
-            self.assertTrue(xml.exists())
-            # TODO test remote file size vs local?
-
-            # TODO cleanup: rclone purge test_google_cloud:test1?
-
     def test_100_sync_to_undefined_cloud(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
@@ -183,12 +163,12 @@ class TestClass(unittest.TestCase):
             # cleanup
             shutil.rmtree(str(restore_path))
 
-    # def test_110_restore_files_from_remote_folder(self):
+    # def test_110_recover_files_from_remote_folder(self):
     #     self.grenier.open_config()
     #     for r in self.grenier.repositories:
     #         remote_path = Path("/tmp/grenier", r.name)
     #
-    # def test_120_restore_files_from_remote_cloud(self):
+    # def test_120_recover_files_from_remote_cloud(self):
     #     pass
 
 if __name__ == '__main__':

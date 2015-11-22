@@ -109,11 +109,12 @@ class GrenierRepository(object):
 
     def sync_remote(self, remote_name, display=False):
         remote_found, remote = self._find_remote(remote_name)
+        save_success = False
         if remote_found and remote.is_known:
             if remote.is_cloud:
-                self.save_to_cloud(remote, display)
+                save_success, err_log = self._save_to_cloud(remote, display)
             elif remote.is_disk or remote.is_directory:
-                self.save_to_folder(remote, display)
+                save_success, err_log = self._save_to_folder(remote, display)
             else:
                 log("Unknown remote %s, maybe unmounted disk. "
                     "Not doing anything." % remote.name, color="red", display=display)
@@ -123,9 +124,11 @@ class GrenierRepository(object):
         else:
             log("Remote %s not found!!!" % remote_name, color="red", display=display)
 
-        return remote_found and remote.is_known  # TODO and save success
+        return remote_found and remote.is_known and save_success
 
     def restore(self, target, display=True):
+        success = False
+        output = ""
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red", display=display)
@@ -156,20 +159,23 @@ class GrenierRepository(object):
                 color="yellow", display=display)
             umount(self.fuse_dir)
 
-    def save_to_folder(self, grenier_remote, display=True):
+    def _save_to_folder(self, grenier_remote, display=True):
         log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
         if not grenier_remote.full_path.exists():
             grenier_remote.full_path.mkdir(parents=True)
         start = time.time()
-        rsync_command([str(self.backup_dir), str(grenier_remote.full_path)], quiet=not display)
-        update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
-                                   self.name)
-        log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
-        self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
-        # TODO return rsync success
-        return True
+        success, err_log = rsync_command([str(self.backup_dir), str(grenier_remote.full_path)],
+                                         quiet=not display)
+        if success:
+            update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
+                                       self.name)
+            log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
+            self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
+        else:
+            log("!! Error! %s" % err_log, color="red", display=display)
+        return success, err_log
 
-    def save_to_cloud(self, grenier_remote, display=True):
+    def _save_to_cloud(self, grenier_remote, display=True):
         # check if configured
         if grenier_remote.is_cloud:
             start = time.time()
@@ -185,41 +191,36 @@ class GrenierRepository(object):
                 log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
             else:
                 log("!! Error! %s" % err_log, color="red", display=display)
-            return success
+            return success, err_log
+        else:
+            return False, "!!! %s is not a cloud remote..." % grenier_remote.name
 
-    def restore_from_google_drive(self, target):
-        if not create_or_check_if_empty(target):
-            log("Directory %s is not empty,"
-                " not doing anything." % target, color="red")
-            sys.exit(-1)
-        if self.google_configured:
-            log("+ Restoring from google drive.", color="yellow")
-            # TODO with rclone
-
-    def restore_from_hubic(self, target):
+    def recover_from_cloud(self, remote, target):
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red")
             sys.exit(-1)
         # TODO aller chercher credentials dans config
-        log("+ Restoring from hubic.", color="yellow")
-        start = time.time()
-        if self.hubic_configured:
-            # TODO!! dosser xdg
-            encfs_xml_dir = "encryption_info_dir"
+        if remote.is_cloud:
+            log("+ Restoring from cloud (%s)." % remote.name, color="yellow")
+            start = time.time()
             success, err_log = restore_from_cloud(self.name,
-                                                  "hubic",
+                                                  remote.name,
                                                   self.temp_dir,
                                                   target,
-                                                  self.passphrase,
-                                                  encfs_xml_dir)
+                                                  self.rclone_config_file,
+                                                  self.passphrase)
             if success:
-                log("+ Downloaded from hubic in %.2fs." % (time.time() - start), color="green")
+                log("+ Downloaded from %s in %.2fs." % (remote.name, time.time() - start),
+                    color="green")
                 # TODO: restore bup versions
             else:
                 log("!! Error! %s" % err_log, color="red")
+            return success, err_log
+        else:
+            return False, "!!! %s is not a cloud remote..." % remote.name
 
-    def restore_from_folder(self, folder, target):
+    def recover_from_folder(self, folder, target):
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red")
@@ -282,7 +283,7 @@ class GrenierRepository(object):
         original_size = get_folder_size(self.backup_dir)
         total_number_of_files = 0
         for source in self.sources:
-            total_number_of_files += self._save(source, display)
+            total_number_of_files += self._save_source(source, display)
         new_size = get_folder_size(self.backup_dir)
         delta = new_size - original_size
         log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
@@ -291,7 +292,7 @@ class GrenierRepository(object):
             color="green", display=display)
         return total_number_of_files
 
-    def _save(self, source, display=True):
+    def _save_source(self, source, display=True):
         log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
         number_of_files = self._index(source, display)
         log("+ Saving.", color="yellow", display=display)

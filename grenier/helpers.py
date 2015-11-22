@@ -139,6 +139,7 @@ def save_to_cloud(repository_name, backend, directory_path, encfs_mount,
                   rclone_config_file, password):
     backup_success = False
     rclone_success = False
+    output_rclone = ""
     # reverse encfs mount
     assert create_or_check_if_empty(encfs_mount)
     assert not is_fuse_mounted(encfs_mount)
@@ -160,7 +161,7 @@ def save_to_cloud(repository_name, backend, directory_path, encfs_mount,
 
 
 def restore_from_cloud(repository_name, backend, encfs_path, restore_path,
-                       rclone_config_file, password, xml_backup_dir):
+                       rclone_config_file, password):
     # TODO return success, log
     # create encfs_path
     encfs_path = Path(encfs_path)
@@ -208,10 +209,11 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
         return False, output
 
 
-def rsync_command(cmd, quiet=False):
+def rsync_command(cmd, quiet=False, save_output=True):
     complete_cmd = ["rsync", "-a", "--delete", "--human-readable",
                     "--info=progress2", "--force"] + cmd
     logger.debug(complete_cmd)
+    output = ""
     # TODO: return success, log
     if quiet:
         p = Popen(complete_cmd, stdout=PIPE, stderr=PIPE, bufsize=1)
@@ -221,7 +223,13 @@ def rsync_command(cmd, quiet=False):
     for line in iter(p.stderr.readline, b''):
         if not quiet:
             logger.warning("\t !!! " + line.decode("utf8").rstrip())
+        if save_output:
+            output += line.decode("utf8")
     p.communicate()
+    if p.returncode == 0:
+        return True, output
+    else:
+        return False, output
 
 
 def readable_size(num):
