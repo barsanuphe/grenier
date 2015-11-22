@@ -3,6 +3,7 @@ import getpass
 from configparser import ConfigParser
 from grenier.logger import *
 from grenier.helpers import *
+from grenier.commands import *
 
 
 class GrenierSource(object):
@@ -96,10 +97,11 @@ class GrenierRepository(object):
         self.init(display)
         if check_before:
             self.check_and_repair(display)
-        total_number_of_files = self.save(display)
-        log("+ Backup done in %.2fs." % (time.time() - starting_time),
-            color="green", display=display)
-        return total_number_of_files
+        success, total_number_of_files = self.save(display)
+        if success:
+            log("+ Backup done in %.2fs." % (time.time() - starting_time),
+                color="green", display=display)
+        return success, total_number_of_files
 
     def _find_remote(self, remote_name):
         for remote in self.remotes:
@@ -232,33 +234,6 @@ class GrenierRepository(object):
             # TODO with rsync actually!!!
             # duplicity_command([Path(folder).as_uri(), target], self.passphrase)
 
-    def __str__(self):
-        txt = "++ Repository %s\n" % self.name
-        txt += "\tBup Dir: %s\n" % self.backup_dir
-        txt += "\tSources:\n"
-        for source in self.sources:
-            if source.excluded_extensions:
-                txt += "\t\t%s (%s) [exluded: %s]\n" % (source.name,
-                                                        source.target_dir,
-                                                        source.excluded_extensions)
-            else:
-                txt += "\t\t%s (%s)\n" % (source.name,
-                                          source.target_dir)
-        txt += "\tRemotes:\n"
-        for remote in self.remotes:
-            txt += "\t\t- {remote}\n".format(remote=remote)
-        return txt
-
-    def _index(self, source, display=True):
-        log("+ Indexing.", color="yellow", display=display)
-        cmd = ["index", "-vv"]
-        if source.excluded_extensions:
-            cmd.append(r"--exclude-rx=^.*\.(%s)$" % r"|".join(source.excluded_extensions))
-        cmd.append(str(source.target_dir))
-        success, output = bup_command(cmd, self.backup_dir, quiet=True)
-        number_of_files = len(output.strip().split("\n"))
-        return number_of_files
-
     def _fsck(self, generate=False, display=True):
         if generate:
             log("+ Generating redundancy files.", color="yellow", display=display)
@@ -283,29 +258,54 @@ class GrenierRepository(object):
         original_size = get_folder_size(self.backup_dir)
         total_number_of_files = 0
         for source in self.sources:
-            total_number_of_files += self._save_source(source, display)
+            success, number_of_files = self._save_source(source, display)
+            if success:
+                total_number_of_files += number_of_files
+            else:
+                log("!!! Error saving source %s, stopping." % source.name, color="red")
+                return False, total_number_of_files
         new_size = get_folder_size(self.backup_dir)
         delta = new_size - original_size
         log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
         log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
                                                     readable_size(delta)),
             color="green", display=display)
-        return total_number_of_files
+        return True, total_number_of_files
 
     def _save_source(self, source, display=True):
         log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
-        number_of_files = self._index(source, display)
+
+        log("+ Indexing.", color="yellow", display=display)
+        index_success, number_of_files = index_files(source, self.backup_dir)
+
         log("+ Saving.", color="yellow", display=display)
         # TODO return success
-        success, output = bup_command(["save", "-vv",
-                                       source.target_dir.as_posix(),
-                                       "-n", source.name,
-                                       '--strip-path=%s' % source.target_dir.as_posix(),
-                                       '-9'],
-                                      self.backup_dir,
-                                      quiet=not display,
-                                      number_of_items=number_of_files,
-                                      pbar_title="Saving: ",
-                                      save_output=False)
+        save_success, output = bup_command(["save", "-vv",
+                                            source.target_dir.as_posix(),
+                                            "-n", source.name,
+                                            '--strip-path=%s' % source.target_dir.as_posix(),
+                                            '-9'],
+                                           self.backup_dir,
+                                           quiet=not display,
+                                           number_of_items=number_of_files,
+                                           pbar_title="Saving: ",
+                                           save_output=False)
         fsck_success, fsck_output = self._fsck(generate=True, display=display)
-        return number_of_files
+        return index_success and save_success and fsck_success, number_of_files
+
+    def __str__(self):
+        txt = "++ Repository %s\n" % self.name
+        txt += "\tBup Dir: %s\n" % self.backup_dir
+        txt += "\tSources:\n"
+        for source in self.sources:
+            if source.excluded_extensions:
+                txt += "\t\t%s (%s) [exluded: %s]\n" % (source.name,
+                                                        source.target_dir,
+                                                        source.excluded_extensions)
+            else:
+                txt += "\t\t%s (%s)\n" % (source.name,
+                                          source.target_dir)
+        txt += "\tRemotes:\n"
+        for remote in self.remotes:
+            txt += "\t\t- {remote}\n".format(remote=remote)
+        return txt

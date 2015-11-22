@@ -1,7 +1,6 @@
 import unittest
 import getpass
 import shutil
-import sys
 from grenier.helpers import *
 from grenier.grenier import Grenier
 
@@ -43,7 +42,8 @@ class TestClass(unittest.TestCase):
     def test_020_save(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
-            number_of_files = r.backup(display=False)
+            success, number_of_files = r.backup(display=False)
+            self.assertTrue(success)
             self.assertEqual(number_of_files, 5)
             repo_contents = [str(el) for el in r.backup_dir.rglob("*")]
             self.assertNotEqual(len(repo_contents), 0)
