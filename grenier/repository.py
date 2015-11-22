@@ -22,6 +22,7 @@ class GrenierRemote(object):
         self.is_directory = False
         self.is_disk = False
         self.is_cloud = False
+        self.full_path = None
 
         if Path(name).is_absolute():
             self.full_path = Path(name)
@@ -56,11 +57,11 @@ class GrenierRepository(object):
         self.rclone_config_file = rclone_config_file
         self.temp_dir = temp_dir
         if not self.temp_dir.exists():
-            logger.info("+ Creating folder %s" % self.temp_dir)
+            logger.debug("+ Creating folder %s" % self.temp_dir)
             self.temp_dir.mkdir(parents=True)
         self.backup_dir = backup_dir
         if not self.backup_dir.exists():
-            logger.info("+ Creating folder %s" % self.backup_dir)
+            logger.debug("+ Creating folder %s" % self.backup_dir)
             self.backup_dir.mkdir(parents=True)
         self.fuse_dir = None
         self.sources = []
@@ -129,18 +130,22 @@ class GrenierRepository(object):
         fsck_success, fsck_output = fsck_files(self.backup_dir, generate=True, display=display)
         return index_success and save_success and fsck_success, number_of_files
 
-
-
-    def _find_remote(self, remote_name):
+    def _find_remote_by_name(self, remote_name):
         for remote in self.remotes:
             if remote.name == remote_name:
-                return True, remote
-        return False, None
+                return remote
+        return None
+
+    def _find_remote_by_path(self, remote_path):
+        for remote in self.remotes:
+            if remote.full_path == remote_path:
+                return remote
+        return None
 
     def sync_remote(self, remote_name, display=False):
-        remote_found, remote = self._find_remote(remote_name)
+        remote = self._find_remote_by_name(remote_name)
         save_success = False
-        if remote_found and remote.is_known:
+        if remote and remote.is_known:
             if remote.is_cloud:
                 save_success, err_log = self.sync_to_cloud(remote, display)
             elif remote.is_disk or remote.is_directory:
@@ -148,13 +153,13 @@ class GrenierRepository(object):
             else:
                 log("Unknown remote %s, maybe unmounted disk. "
                     "Not doing anything." % remote.name, color="red", display=display)
-        elif remote_found and not remote.is_known:
+        elif remote and not remote.is_known:
             log("Rclone config for remote %s not found!!!" % remote_name,
                 color="red", display=display)
         else:
             log("Remote %s not found!!!" % remote_name, color="red", display=display)
 
-        return remote_found and remote.is_known and save_success
+        return remote and remote.is_known and save_success
 
     def restore(self, target, display=True):
         success = False
@@ -221,7 +226,7 @@ class GrenierRepository(object):
         else:
             return False, "!!! %s is not a cloud remote..." % grenier_remote.name
 
-    def recover_from_cloud(self, remote, target):
+    def recover_from_cloud(self, remote, target, display=True):
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red")
@@ -245,18 +250,23 @@ class GrenierRepository(object):
         else:
             return False, "!!! %s is not a cloud remote..." % remote.name
 
-    def recover_from_folder(self, folder, target):
-        if not create_or_check_if_empty(target):
-            log("Directory %s is not empty,"
-                " not doing anything." % target, color="red")
-        elif not Path(target).is_absolute():
-            log("!! Directory %s is not an absolute path,"
-                " nothing will be done." % target, color="red")
-        else:
-            log("+ Restoring from %s to %s." % (folder, target), color="yellow")
-            # TODO with rsync actually!!!
-            # duplicity_command([Path(folder).as_uri(), target], self.passphrase)
+    def recover_from_folder(self, remote_path, target, display=True):
+        # find remote by full_path
+        remote = self._find_remote_by_path(remote_path)
+        if not remote:
+            return False, "No such remote!"
 
+        if not create_or_check_if_empty(target):
+            log("Directory %s is not empty, not doing anything." % target,
+                color="red", display=display)
+            return False, "Target not an empty directory."
+
+        log("+ Recovering files from %s to %s." % (remote.full_path, target),
+            color="yellow", display=display)
+        success, err_log = recover_files_from_folder(self.backup_dir, remote, target, display=display)
+        if not success:
+            log("!! Error! %s" % err_log, color="red", display=display)
+        return success, err_log
 
     def __str__(self):
         txt = "++ Repository %s\n" % self.name

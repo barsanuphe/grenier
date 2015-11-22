@@ -124,8 +124,8 @@ class TestClass(unittest.TestCase):
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
 
-            found, remote = r._find_remote("test_cloud_container")
-            self.assertTrue(found)
+            remote = r._find_remote_by_name("test_cloud_container")
+            self.assertIsNotNone(remote)
             self.assertTrue(remote.is_known)
             self.assertTrue(remote.is_cloud)
 
@@ -163,11 +163,28 @@ class TestClass(unittest.TestCase):
             # cleanup
             shutil.rmtree(str(restore_path))
 
-    # def test_110_recover_files_from_remote_folder(self):
-    #     self.grenier.open_config()
-    #     for r in self.grenier.repositories:
-    #         remote_path = Path("/tmp/grenier", r.name)
-    #
+    def test_110_recover_files_from_remote_folder(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            remote_path = Path("/tmp/grenier")
+
+            success, err_log = r.recover_from_folder(remote_path, r.temp_dir, display=False)
+            self.assertTrue(success)
+            self.assertEqual(err_log, "")
+
+            # check files
+            original = [str(el.relative_to(remote_path)) for el in remote_path.rglob("*")
+                        if str(el.relative_to(remote_path)) != "last_synced.yaml"]
+            recovered = [str(el.relative_to(r.temp_dir)) for el in r.temp_dir.rglob("*")]
+
+            diff1 = [el for el in original if el not in recovered]
+            diff2 = [el for el in recovered if el not in original]
+            self.assertEqual(diff1, [])
+            self.assertEqual(diff2, [])
+
+            # cleanup
+            shutil.rmtree(str(r.temp_dir))
+
     # def test_120_recover_files_from_remote_cloud(self):
     #     pass
 

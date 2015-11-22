@@ -228,6 +228,15 @@ def save_to_folder(repository_name, repository_directory, grenier_remote, displa
     return success, err_log
 
 
+def recover_files_from_folder(backup_dir, grenier_remote, target_path, display=True):
+    if not grenier_remote.full_path.exists():
+        return False, "No remote files found."
+
+    remote_path = Path(grenier_remote.full_path, backup_dir.stem)
+    success, err_log = rsync_command([str(remote_path), str(target_path)],
+                                     quiet=not display)
+    return success, err_log
+
 # Other things
 # -------------------
 
