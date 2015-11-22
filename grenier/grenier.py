@@ -216,7 +216,7 @@ def main():
                         p.check_and_repair()
 
                     if args.backup:
-                        p.backup()
+                        p.save()
 
                     if args.backup_target:
                         # finding what remotes to back up

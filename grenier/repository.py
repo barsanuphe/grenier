@@ -23,8 +23,6 @@ class GrenierRemote(object):
         self.is_disk = False
         self.is_cloud = False
 
-        self.rclone_config_file = rclone_config_file
-
         if Path(name).is_absolute():
             self.full_path = Path(name)
             self.is_directory = True
@@ -32,7 +30,7 @@ class GrenierRemote(object):
             self.full_path = Path("/run/media/%s/%s" % (getpass.getuser(), name))
             self.is_disk = True
         else:  # out of options...
-            # check if known
+            # check if known rclone remote
             conf = ConfigParser()
             conf.read(str(rclone_config_file))
             self.is_cloud = self.name in conf.sections()
@@ -65,14 +63,8 @@ class GrenierRepository(object):
             logger.info("+ Creating folder %s" % self.backup_dir)
             self.backup_dir.mkdir(parents=True)
         self.fuse_dir = None
-
         self.sources = []
         self.remotes = []
-
-        # TODO remove
-        self.google_configured = None
-        self.hubic_configured = None
-
         self.passphrase = passphrase
         self.just_synced = []
 
@@ -86,22 +78,58 @@ class GrenierRepository(object):
     def init(self, display=True):
         if create_or_check_if_empty(self.backup_dir):
             log("+ Initializing repository.", color="yellow", display=display)
-            bup_command(["init"], self.backup_dir, quiet=True)
+            return init_repository(self.backup_dir, display=False)
+        else:
+            return True, "Repository already exists."
 
     def check_and_repair(self, display=True):
         log("+ Checking and repairing repository.", color="yellow", display=display)
-        return self._fsck(generate=False, display=display)
+        return fsck_files(self.backup_dir, generate=False, display=display)
 
-    def backup(self, check_before=False, display=True):
+    def save(self, check_before=False, display=True):
         starting_time = time.time()
-        self.init(display)
-        if check_before:
-            self.check_and_repair(display)
-        success, total_number_of_files = self.save(display)
-        if success:
-            log("+ Backup done in %.2fs." % (time.time() - starting_time),
-                color="green", display=display)
-        return success, total_number_of_files
+        init_success, errlog = self.init(display)
+        if not init_success:
+            log("!!! %s " % errlog, color="red", display=display)
+            return False, 0
+        else:
+            if check_before:
+                self.check_and_repair(display)
+            success, total_number_of_files = self.save_repository(display)
+            if success:
+                log("+ Backup done in %.2fs." % (time.time() - starting_time),
+                    color="green", display=display)
+            return success, total_number_of_files
+
+    def save_repository(self, display=True):
+        original_size = get_folder_size(self.backup_dir)
+        total_number_of_files = 0
+        for source in self.sources:
+            success, number_of_files = self._save_source(source, display)
+            if success:
+                total_number_of_files += number_of_files
+            else:
+                log("!!! Error saving source %s, stopping." % source.name, color="red")
+                return False, total_number_of_files
+        new_size = get_folder_size(self.backup_dir)
+        delta = new_size - original_size
+        log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
+        log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
+                                                    readable_size(delta)),
+            color="green", display=display)
+        return True, total_number_of_files
+
+    def _save_source(self, source, display=True):
+        log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
+        log("+ Indexing.", color="yellow", display=display)
+        index_success, number_of_files = index_files(source, self.backup_dir)
+        log("+ Saving.", color="yellow", display=display)
+        save_success, output = save_files(source, self.backup_dir, number_of_files, display=display)
+        log("+ Generating redundancy files.", color="yellow", display=display)
+        fsck_success, fsck_output = fsck_files(self.backup_dir, generate=True, display=display)
+        return index_success and save_success and fsck_success, number_of_files
+
+
 
     def _find_remote(self, remote_name):
         for remote in self.remotes:
@@ -114,9 +142,9 @@ class GrenierRepository(object):
         save_success = False
         if remote_found and remote.is_known:
             if remote.is_cloud:
-                save_success, err_log = self._save_to_cloud(remote, display)
+                save_success, err_log = self.sync_to_cloud(remote, display)
             elif remote.is_disk or remote.is_directory:
-                save_success, err_log = self._save_to_folder(remote, display)
+                save_success, err_log = self.sync_to_folder(remote, display)
             else:
                 log("Unknown remote %s, maybe unmounted disk. "
                     "Not doing anything." % remote.name, color="red", display=display)
@@ -161,23 +189,19 @@ class GrenierRepository(object):
                 color="yellow", display=display)
             umount(self.fuse_dir)
 
-    def _save_to_folder(self, grenier_remote, display=True):
+    def sync_to_folder(self, grenier_remote, display=True):
         log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
-        if not grenier_remote.full_path.exists():
-            grenier_remote.full_path.mkdir(parents=True)
         start = time.time()
-        success, err_log = rsync_command([str(self.backup_dir), str(grenier_remote.full_path)],
-                                         quiet=not display)
+        success, err_log = save_to_folder(self.name, self.backup_dir,
+                                          grenier_remote, display=display)
         if success:
-            update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
-                                       self.name)
-            log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
             self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
+            log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
         else:
             log("!! Error! %s" % err_log, color="red", display=display)
         return success, err_log
 
-    def _save_to_cloud(self, grenier_remote, display=True):
+    def sync_to_cloud(self, grenier_remote, display=True):
         # check if configured
         if grenier_remote.is_cloud:
             start = time.time()
@@ -202,7 +226,6 @@ class GrenierRepository(object):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red")
             sys.exit(-1)
-        # TODO aller chercher credentials dans config
         if remote.is_cloud:
             log("+ Restoring from cloud (%s)." % remote.name, color="yellow")
             start = time.time()
@@ -234,64 +257,6 @@ class GrenierRepository(object):
             # TODO with rsync actually!!!
             # duplicity_command([Path(folder).as_uri(), target], self.passphrase)
 
-    def _fsck(self, generate=False, display=True):
-        if generate:
-            log("+ Generating redundancy files.", color="yellow", display=display)
-        # get number of .pack files
-        # each .pack has its own par2 files
-        repository_objects = Path(self.backup_dir, "objects", "pack")
-        packs = [el for el in repository_objects.iterdir()
-                 if el.suffix == ".pack"]
-        cmd = ["fsck", "-v", "-j8"]
-        if generate:
-            cmd.append("-g")
-            title = "Generating: "
-        else:
-            cmd.append("-r")
-            title = "Checking: "
-        return bup_command(cmd, self.backup_dir, quiet=not display,
-                           number_of_items=len(packs),
-                           pbar_title=title,
-                           save_output=False)
-
-    def save(self, display=True):
-        original_size = get_folder_size(self.backup_dir)
-        total_number_of_files = 0
-        for source in self.sources:
-            success, number_of_files = self._save_source(source, display)
-            if success:
-                total_number_of_files += number_of_files
-            else:
-                log("!!! Error saving source %s, stopping." % source.name, color="red")
-                return False, total_number_of_files
-        new_size = get_folder_size(self.backup_dir)
-        delta = new_size - original_size
-        log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
-        log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
-                                                    readable_size(delta)),
-            color="green", display=display)
-        return True, total_number_of_files
-
-    def _save_source(self, source, display=True):
-        log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
-
-        log("+ Indexing.", color="yellow", display=display)
-        index_success, number_of_files = index_files(source, self.backup_dir)
-
-        log("+ Saving.", color="yellow", display=display)
-        # TODO return success
-        save_success, output = bup_command(["save", "-vv",
-                                            source.target_dir.as_posix(),
-                                            "-n", source.name,
-                                            '--strip-path=%s' % source.target_dir.as_posix(),
-                                            '-9'],
-                                           self.backup_dir,
-                                           quiet=not display,
-                                           number_of_items=number_of_files,
-                                           pbar_title="Saving: ",
-                                           save_output=False)
-        fsck_success, fsck_output = self._fsck(generate=True, display=display)
-        return index_success and save_success and fsck_success, number_of_files
 
     def __str__(self):
         txt = "++ Repository %s\n" % self.name

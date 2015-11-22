@@ -1,7 +1,7 @@
 import yaml
-
 from grenier.logger import logger
 from grenier.helpers import *
+
 
 # Low-level commands
 # -------------------
@@ -124,8 +124,13 @@ def rsync_command(cmd, quiet=False, save_output=True):
     else:
         return False, output
 
+
 # Operations
 # -------------------
+
+
+def init_repository(backup_dir, display=True):
+    return bup_command(["init"], backup_dir, quiet=not display)
 
 
 def index_files(source, backup_dir):
@@ -136,6 +141,38 @@ def index_files(source, backup_dir):
     success, output = bup_command(cmd, backup_dir, quiet=True)
     # returns succes and number of files/folders
     return success, len(output.strip().split("\n"))
+
+
+def fsck_files(backup_dir, generate=False, display=True):
+    # get number of .pack files
+    # each .pack has its own par2 files
+    repository_objects = Path(backup_dir, "objects", "pack")
+    packs = [el for el in repository_objects.iterdir()
+             if el.suffix == ".pack"]
+    cmd = ["fsck", "-v", "-j8"]
+    if generate:
+        cmd.append("-g")
+        title = "Generating: "
+    else:
+        cmd.append("-r")
+        title = "Checking: "
+    return bup_command(cmd, backup_dir, quiet=not display,
+                       number_of_items=len(packs),
+                       pbar_title=title,
+                       save_output=False)
+
+
+def save_files(source, backup_dir, number_of_files, display=True):
+    return bup_command(["save", "-vv",
+                        str(source.target_dir),
+                        "-n", source.name,
+                        '--strip-path=%s' % str(source.target_dir),
+                        '-9'],
+                       backup_dir,
+                       quiet=not display,
+                       number_of_items=number_of_files,
+                       pbar_title="Saving: ",
+                       save_output=False)
 
 
 def save_to_cloud(repository_name, backend, directory_path, encfs_mount,
@@ -178,6 +215,17 @@ def restore_from_cloud(repository_name, backend, encfs_path, restore_path,
     assert encfs_xml_path.exists()
     # encfs with password to restore_path
     encfs_command(encfs_path, restore_path, password, reverse=False)
+
+
+def save_to_folder(repository_name, repository_directory, grenier_remote, display=True):
+    if not grenier_remote.full_path.exists():
+        grenier_remote.full_path.mkdir(parents=True)
+    success, err_log = rsync_command([str(repository_directory), str(grenier_remote.full_path)],
+                                     quiet=not display)
+    if success:
+        update_or_create_sync_file(Path(grenier_remote.full_path, "last_synced.yaml"),
+                                   repository_name)
+    return success, err_log
 
 
 # Other things
