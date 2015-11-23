@@ -185,8 +185,26 @@ class TestClass(unittest.TestCase):
             # cleanup
             shutil.rmtree(str(r.temp_dir))
 
-    # def test_120_recover_files_from_remote_cloud(self):
-    #     pass
+    def test_120_recover_files_from_remote_cloud(self):
+        restore_path = Path("test_files", "restore_cloud")
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            success, output = r.recover_from_cloud("test_cloud_container",
+                                                   restore_path,
+                                                   display=False)
+            self.assertTrue(success)
+            self.assertEqual(output, "")
+
+            # check files
+            recovered = [str(el.relative_to(restore_path)) for el in restore_path.rglob("*")]
+            self.assertNotEqual(recovered, [])
+            self.assertTrue("bupindex" in recovered)
+
+            #  cleanup
+            umount(restore_path)
+            shutil.rmtree(str(restore_path))
+            shutil.rmtree(str(r.temp_dir))
+
 
 if __name__ == '__main__':
     unittest.main()

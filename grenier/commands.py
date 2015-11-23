@@ -1,3 +1,4 @@
+import os
 import yaml
 from grenier.logger import logger
 from grenier.helpers import *
@@ -7,23 +8,26 @@ from grenier.helpers import *
 # -------------------
 
 
-def encfs_command(directory1, directory2, password, reverse=False, quiet=False):
-    # TODO: if not reverse, set env for xml path!!!
-
+def encfs_command(directory1, directory2, password, encfs_xml_path=None, reverse=False, quiet=False):
     # dirs must be absolute
     directory1 = absolute_path(directory1)
     directory2 = absolute_path(directory2)
 
     assert directory1 is not None and directory1.exists()
     assert directory2 is not None and directory2.exists()
-    cmd = ["encfs", "--standard", "-S", str(directory1), str(directory2)]
+    cmd = ["encfs", "-S", str(directory1), str(directory2)]
+    env = os.environ.copy()
     if reverse:
-        cmd.append("--reverse")
+        cmd.extend(["--standard", "--reverse"])
+    else:
+        env["ENCFS6_CONFIG"] = str(encfs_xml_path)
+    log_cmd(cmd)
     p = Popen(cmd,
               stdin=PIPE,
               stdout=PIPE,
               stderr=PIPE,
-              bufsize=1)
+              bufsize=1,
+              env=env)
     stdout_data, stderr_data = p.communicate(password.encode("utf-8"))
     output = ""
     for line in stderr_data.decode("utf8").strip().split("\n"):
@@ -54,7 +58,7 @@ def rclone_command(rclone_config_file, operation, directory=None, container=None
             cmd.extend([str(directory), container])
         elif operation == "copy":
             cmd.extend([container, str(directory)])
-        logger.debug(cmd)
+        log_cmd(cmd)
         p = Popen(cmd, stdout=PIPE, stderr=PIPE, bufsize=1)
         output = ""
         for line in iter(p.stderr.readline, b''):
@@ -72,7 +76,7 @@ def rclone_command(rclone_config_file, operation, directory=None, container=None
 
 def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
                 pbar_title="", save_output=True):
-    logger.debug(cmd)
+    log_cmd(cmd)
     env_dict = {"BUP_DIR": str(backup_directory)}
     output = ""
 
@@ -105,7 +109,7 @@ def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
 def rsync_command(cmd, quiet=False, save_output=True):
     complete_cmd = ["rsync", "-a", "--delete", "--human-readable",
                     "--info=progress2", "--force"] + cmd
-    logger.debug(complete_cmd)
+    log_cmd(complete_cmd)
     output = ""
     # TODO: return success, log
     if quiet:
@@ -200,21 +204,34 @@ def save_to_cloud(repository_name, backend, directory_path, encfs_mount,
     return success and backup_success and rclone_success, output_encfs + output_rclone
 
 
+def restore_source(backup_dir, source_name, target, display=True):
+    sub_target = Path(target, source_name)
+    return bup_command(["restore", "-C", str(sub_target), "/%s/latest/." % source_name],
+                       backup_dir,
+                       quiet=not display)
+
+
 def restore_from_cloud(repository_name, backend, encfs_path, restore_path,
-                       rclone_config_file, password):
-    # TODO return success, log
+                       rclone_config_file, password, display=True):
     # create encfs_path
     encfs_path = Path(encfs_path)
     assert create_or_check_if_empty(encfs_path)
     assert not is_fuse_mounted(encfs_path)
     # rclone copy
-    rclone_command(rclone_config_file, "copy", encfs_path, "%s:%s" % (backend, repository_name))
-    # find encfs xml
-    xml_backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
-    encfs_xml_path = Path(xml_backup_dir, "%s.xml" % repository_name)
-    assert encfs_xml_path.exists()
-    # encfs with password to restore_path
-    encfs_command(encfs_path, restore_path, password, reverse=False)
+    rclone_success, rclone_log = rclone_command(rclone_config_file, "copy", encfs_path,
+                                                "%s:%s" % (backend, repository_name),
+                                                quiet=not display)
+    if rclone_success:
+        # find encfs xml
+        xml_backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
+        encfs_xml_path = Path(xml_backup_dir, "%s.xml" % repository_name)
+        assert encfs_xml_path.exists()
+        # encfs with password to restore_path
+        encfs_success, encfs_log = encfs_command(encfs_path, restore_path, password, encfs_xml_path,
+                                                 reverse=False, quiet=not display)
+        return encfs_success, encfs_log
+    else:
+        return False, rclone_log
 
 
 def save_to_folder(repository_name, repository_directory, grenier_remote, display=True):
@@ -236,6 +253,7 @@ def recover_files_from_folder(backup_dir, grenier_remote, target_path, display=T
     success, err_log = rsync_command([str(remote_path), str(target_path)],
                                      quiet=not display)
     return success, err_log
+
 
 # Other things
 # -------------------

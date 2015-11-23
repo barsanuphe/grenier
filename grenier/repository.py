@@ -162,23 +162,20 @@ class GrenierRepository(object):
         return remote and remote.is_known and save_success
 
     def restore(self, target, display=True):
-        success = False
-        output = ""
+        overall_success = True
+        overall_output = ""
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red", display=display)
             sys.exit(-1)
         for source in self.sources:
-            sub_target = Path(target, source.name)
-            log("+ Restoring %s to %s." % (source.name, sub_target), color="yellow",
-                display=display)
-            success, output = bup_command(
-                ["restore", "-C", str(sub_target), "/%s/latest/." % source.name],
-                self.backup_dir,
-                quiet=False)
-        if not success:
-            log("!!! %s" % output, color="red", display=display)
-        return success, output
+            log("+ Restoring %s to %s." % (source.name, target), color="yellow", display=display)
+            success, output = restore_source(self.backup_dir, source.name, target, display=display)
+            if not success:
+                log("!!! %s" % output, color="red", display=display)
+            overall_success = overall_success and success
+            overall_output += output
+        return overall_success, overall_output
 
     def fuse(self, folder, display=True):
         if create_or_check_if_empty(folder):
@@ -226,24 +223,25 @@ class GrenierRepository(object):
         else:
             return False, "!!! %s is not a cloud remote..." % grenier_remote.name
 
-    def recover_from_cloud(self, remote, target, display=True):
+    def recover_from_cloud(self, remote_name, target, display=True):
+        remote = self._find_remote_by_name(remote_name)
         if not create_or_check_if_empty(target):
             log("Directory %s is not empty,"
                 " not doing anything." % target, color="red")
             sys.exit(-1)
-        if remote.is_cloud:
-            log("+ Restoring from cloud (%s)." % remote.name, color="yellow")
+        if remote and remote.is_cloud:
+            log("+ Restoring from cloud (%s)." % remote.name, color="yellow", display=display)
             start = time.time()
             success, err_log = restore_from_cloud(self.name,
                                                   remote.name,
                                                   self.temp_dir,
                                                   target,
                                                   self.rclone_config_file,
-                                                  self.passphrase)
+                                                  self.passphrase,
+                                                  display=display)
             if success:
                 log("+ Downloaded from %s in %.2fs." % (remote.name, time.time() - start),
-                    color="green")
-                # TODO: restore bup versions
+                    color="green", display=display)
             else:
                 log("!! Error! %s" % err_log, color="red")
             return success, err_log

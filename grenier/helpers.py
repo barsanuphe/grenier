@@ -55,6 +55,10 @@ except ImportError:
             logger.debug(text)
 
 
+def log_cmd(cmd):
+    logger.debug(" ".join(cmd))
+
+
 def generate_pbar(title, number_of_elements):
     widgets = [title,
                Counter(),
