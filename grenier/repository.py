@@ -78,28 +78,27 @@ class GrenierRepository(object):
 
     def init(self, display=True):
         if create_or_check_if_empty(self.backup_dir):
-            log("+ Initializing repository.", color="yellow", display=display)
+            yellow("+ Initializing repository.", display)
             return init_repository(self.backup_dir, display=False)
         else:
             return True, "Repository already exists."
 
     def check_and_repair(self, display=True):
-        log("+ Checking and repairing repository.", color="yellow", display=display)
+        yellow("+ Checking and repairing repository.", display)
         return fsck_files(self.backup_dir, generate=False, display=display)
 
     def save(self, check_before=False, display=True):
         starting_time = time.time()
         init_success, errlog = self.init(display)
         if not init_success:
-            log("!!! %s " % errlog, color="red", display=display)
+            red("!!! %s " % errlog, display)
             return False, 0
         else:
             if check_before:
                 self.check_and_repair(display)
             success, total_number_of_files = self.save_repository(display)
             if success:
-                log("+ Backup done in %.2fs." % (time.time() - starting_time),
-                    color="green", display=display)
+                green("+ Backup done in %.2fs." % (time.time() - starting_time), display)
             return success, total_number_of_files
 
     def save_repository(self, display=True):
@@ -110,23 +109,22 @@ class GrenierRepository(object):
             if success:
                 total_number_of_files += number_of_files
             else:
-                log("!!! Error saving source %s, stopping." % source.name, color="red")
+                red("!!! Error saving source %s, stopping." % source.name, display)
                 return False, total_number_of_files
         new_size = get_folder_size(self.backup_dir)
         delta = new_size - original_size
-        log("+ Backed up %s files." % total_number_of_files, color="green", display=display)
-        log("+ Final repository size: %s (+%s)." % (readable_size(new_size),
-                                                    readable_size(delta)),
-            color="green", display=display)
+        green("+ Backed up %s files." % total_number_of_files, display)
+        green("+ Final repository size: %s (+%s)." % (readable_size(new_size),
+                                                      readable_size(delta)), display)
         return True, total_number_of_files
 
     def _save_source(self, source, display=True):
-        log(">> %s -> %s." % (source.target_dir, self.backup_dir), color="blue", display=display)
-        log("+ Indexing.", color="yellow", display=display)
+        blue(">> %s -> %s." % (source.target_dir, self.backup_dir), display)
+        yellow("+ Indexing.", display)
         index_success, number_of_files = index_files(source, self.backup_dir)
-        log("+ Saving.", color="yellow", display=display)
+        yellow("+ Saving.", display)
         save_success, output = save_files(source, self.backup_dir, number_of_files, display=display)
-        log("+ Generating redundancy files.", color="yellow", display=display)
+        yellow("+ Generating redundancy files.", display)
         fsck_success, fsck_output = fsck_files(self.backup_dir, generate=True, display=display)
         return index_success and save_success and fsck_success, number_of_files
 
@@ -151,13 +149,12 @@ class GrenierRepository(object):
             elif remote.is_disk or remote.is_directory:
                 save_success, err_log = self.sync_to_folder(remote, display)
             else:
-                log("Unknown remote %s, maybe unmounted disk. "
-                    "Not doing anything." % remote.name, color="red", display=display)
+                red("Unknown remote %s, maybe unmounted disk. Not doing anything." % remote.name,
+                    display)
         elif remote and not remote.is_known:
-            log("Rclone config for remote %s not found!!!" % remote_name,
-                color="red", display=display)
+            red("Rclone config for remote %s not found!!!" % remote_name, display)
         else:
-            log("Remote %s not found!!!" % remote_name, color="red", display=display)
+            red("Remote %s not found!!!" % remote_name, display)
 
         return remote and remote.is_known and save_success
 
@@ -165,14 +162,13 @@ class GrenierRepository(object):
         overall_success = True
         overall_output = ""
         if not create_or_check_if_empty(target):
-            log("Directory %s is not empty,"
-                " not doing anything." % target, color="red", display=display)
+            red("Directory %s is not empty, not doing anything." % target, display)
             sys.exit(-1)
         for source in self.sources:
-            log("+ Restoring %s to %s." % (source.name, target), color="yellow", display=display)
+            yellow("+ Restoring %s to %s." % (source.name, target), display)
             success, output = restore_source(self.backup_dir, source.name, target, display=display)
             if not success:
-                log("!!! %s" % output, color="red", display=display)
+                red("!!! %s" % output, display)
             overall_success = overall_success and success
             overall_output += output
         return overall_success, overall_output
@@ -180,34 +176,33 @@ class GrenierRepository(object):
     def fuse(self, folder, display=True):
         if create_or_check_if_empty(folder):
             self.fuse_dir = folder
-            log("+ Mounting repository to %s." % folder, color="yellow", display=display)
+            yellow("+ Mounting repository to %s." % folder, display)
             bup_command(["fuse", str(folder)], self.backup_dir, quiet=True)
 
     def unfuse(self, folder=None, display=True):
         if folder is not None:
             self.fuse_dir = folder
         if self.fuse_dir is not None:
-            log("+ Unmounting repository from {folder}.".format(folder=self.fuse_dir),
-                color="yellow", display=display)
+            yellow("+ Unmounting repository from {folder}.".format(folder=self.fuse_dir), display)
             umount(self.fuse_dir)
 
     def sync_to_folder(self, grenier_remote, display=True):
-        log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
+        yellow("+ Syncing with %s." % grenier_remote.name, display)
         start = time.time()
         success, err_log = save_to_folder(self.name, self.backup_dir,
                                           grenier_remote, display=display)
         if success:
             self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
-            log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
+            green("+ Synced in %.2fs." % (time.time() - start), display)
         else:
-            log("!! Error! %s" % err_log, color="red", display=display)
+            red("!! Error! %s" % err_log, display)
         return success, err_log
 
     def sync_to_cloud(self, grenier_remote, display=True):
         # check if configured
         if grenier_remote.is_cloud:
             start = time.time()
-            log("+ Syncing with %s." % grenier_remote.name, color="yellow", display=display)
+            yellow("+ Syncing with %s." % grenier_remote.name, display)
             success, err_log = save_to_cloud(self.name,
                                              grenier_remote.name,
                                              self.backup_dir,
@@ -216,9 +211,9 @@ class GrenierRepository(object):
                                              self.passphrase)
             if success:
                 self.just_synced.append({grenier_remote.name: time.strftime("%Y-%m-%d_%Hh%M")})
-                log("+ Synced in %.2fs." % (time.time() - start), color="green", display=display)
+                green("+ Synced in %.2fs." % (time.time() - start), display)
             else:
-                log("!! Error! %s" % err_log, color="red", display=display)
+                red("!! Error! %s" % err_log, display)
             return success, err_log
         else:
             return False, "!!! %s is not a cloud remote..." % grenier_remote.name
@@ -226,11 +221,10 @@ class GrenierRepository(object):
     def recover_from_cloud(self, remote_name, target, display=True):
         remote = self._find_remote_by_name(remote_name)
         if not create_or_check_if_empty(target):
-            log("Directory %s is not empty,"
-                " not doing anything." % target, color="red")
+            red("Directory %s is not empty, not doing anything." % target)
             sys.exit(-1)
         if remote and remote.is_cloud:
-            log("+ Restoring from cloud (%s)." % remote.name, color="yellow", display=display)
+            yellow("+ Restoring from cloud (%s)." % remote.name, display)
             start = time.time()
             success, err_log = restore_from_cloud(self.name,
                                                   remote.name,
@@ -240,10 +234,10 @@ class GrenierRepository(object):
                                                   self.passphrase,
                                                   display=display)
             if success:
-                log("+ Downloaded from %s in %.2fs." % (remote.name, time.time() - start),
-                    color="green", display=display)
+                green("+ Downloaded from %s in %.2fs." % (remote.name, time.time() - start),
+                      display)
             else:
-                log("!! Error! %s" % err_log, color="red")
+                red("!! Error! %s" % err_log, display)
             return success, err_log
         else:
             return False, "!!! %s is not a cloud remote..." % remote.name
@@ -255,15 +249,14 @@ class GrenierRepository(object):
             return False, "No such remote!"
 
         if not create_or_check_if_empty(target):
-            log("Directory %s is not empty, not doing anything." % target,
-                color="red", display=display)
+            red("Directory %s is not empty, not doing anything." % target, display)
             return False, "Target not an empty directory."
 
-        log("+ Recovering files from %s to %s." % (remote.full_path, target),
-            color="yellow", display=display)
-        success, err_log = recover_files_from_folder(self.backup_dir, remote, target, display=display)
+        yellow("+ Recovering files from %s to %s." % (remote.full_path, target), display)
+        success, err_log = recover_files_from_folder(self.backup_dir, remote, target,
+                                                     display=display)
         if not success:
-            log("!! Error! %s" % err_log, color="red", display=display)
+            red("!! Error! %s" % err_log, display)
         return success, err_log
 
     def __str__(self):

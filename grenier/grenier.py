@@ -249,7 +249,7 @@ def main():
 
     except KeyboardInterrupt:
         overall_time = time.time() - overall_start
-        log("\n!! Got interrupted after %.2fs." % overall_time, color="red")
+        red("\n!! Got interrupted after %.2fs." % overall_time)
         notify_this("!! Grenier was killed after %.2fs." % overall_time)
         sys.exit(-1)
 

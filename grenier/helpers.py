@@ -55,6 +55,22 @@ except ImportError:
             logger.debug(text)
 
 
+def blue(text, display=True):
+    log(text, display=display, color="blue")
+
+
+def green(text, display=True):
+    log(text, display=display, color="green")
+
+
+def red(text, display=True):
+    log(text, display=display, color="red")
+
+
+def yellow(text, display=True):
+    log(text, display=display, color="yellow")
+
+
 def log_cmd(cmd):
     logger.debug(" ".join(cmd))
 
