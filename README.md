@@ -68,38 +68,40 @@ the cloud (see `--last-synced`).
     $ grenier -h
 
     # # # G R E N I E R # # #
+    usage: grenier [-h] [--config CONFIG_FILE] [-l]
+                   [-n BACKUP_NAME [BACKUP_NAME ...]] [-b]
+                   [-s REMOTE [REMOTE ...]] [-c] [-f MOUNT_POINT]
+                   [-r RESTORE_DIRECTORY] [--last-synced]
+                   [--recover REMOTE TARGET]
 
-    usage: grenier [-h] [--config CONFIG_FILE] [--encrypt] [-l]
-                [-n BACKUP_NAME [BACKUP_NAME ...]] [-b]
-                [-s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]] [-c]
-                [-f MOUNT_POINT] [-r RESTORE_DIRECTORY] [--last-synced]
-
-    Grenier. A wrapper around attic/bup, duplicity to back stuff up.
+    Grenier. A wrapper around bup, rclone, rsync, encfs to back stuff up.
 
     optional arguments:
-    -h, --help            show this help message and exit
+      -h, --help            show this help message and exit
 
     Configuration:
-    Manage configuration files.
+      Manage configuration files.
 
-    --config CONFIG_FILE  Use an alternative configuration file.
-    -l, --list            List defined repositories.
+      --config CONFIG_FILE  Use an alternative configuration file.
+      -l, --list            List defined repositories.
 
-    repositories:
-    Manage repositories.
+    Repositories:
+      Manage repositories.
 
-    -n BACKUP_NAME [BACKUP_NAME ...], --name BACKUP_NAME [BACKUP_NAME ...]
+      -n BACKUP_NAME [BACKUP_NAME ...], --name BACKUP_NAME [BACKUP_NAME ...]
                             specify backup names, or "all".
-    -b, --backup          backup selected repositories.
-    -s BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...], --sync BACKUP_TARGET_NAME [BACKUP_TARGET_NAME ...]
+      -b, --backup          backup selected repositories.
+      -s REMOTE [REMOTE ...], --sync REMOTE [REMOTE ...]
                             backup selected repositories to the cloud or usb
                             drives, or to "all".
-    -c, --check           check and repair selected repositories.
-    -f MOUNT_POINT, --fuse MOUNT_POINT
+      -c, --check           check and repair selected repositories.
+      -f MOUNT_POINT, --fuse MOUNT_POINT
                             Mount/unmount a specified repository to a mountpoint.
-    -r RESTORE_DIRECTORY, --restore RESTORE_DIRECTORY
+      -r RESTORE_DIRECTORY, --restore RESTORE_DIRECTORY
                             Restore latest to this directory.
-    --last-synced         list when you last backed up repositories.
+      --last-synced         list when you last backed up repositories.
+      --recover REMOTE TARGET
+                            recover repository from remote to target.
 
 
 
@@ -152,11 +154,9 @@ Restoring the latest version of the `documents` repository to a directory:
 
     grenier -n documents -r /home/user/hope_this_works/
 
-How about restoring files from copies/the cloud you say?
-That will never happen. Or maybe just once. You don't need a wrapper for this.
-Chances are if that happens you will not mind checking out a few man pages.
+Recovering a repository from the cloud to a directory:
 
-Or maybe support for restoring will come at some point.
+    grenier -n documents --recover hubic /home/user/hope_this_works/
 
 When did you last update the copies of your repositories on that hard drive
 you dropped off at your cousin's home?
@@ -169,7 +169,7 @@ you dropped off at your cousin's home?
 - repositories,
 - what to back up in each,
 - where to keep extra copies
-- sensitive information such as passphrases or passwords, to keep things simple.
+- sensitive information such as passphrases, to keep things simple.
 
 **The user is responsible for keeping this file safe**.
 
