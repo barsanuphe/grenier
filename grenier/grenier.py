@@ -33,8 +33,8 @@ class Grenier(object):
                 with open(str(self.config_file), 'r') as f:
                     config = yaml.load(f)
                     for p in config:
-                        backup_dir = Path(config[p]["backup_dir"], "bup_%s" % p)
-                        temp_dir = Path(config[p].get("temp_dir", "/tmp/bup_%s" % p))
+                        backup_dir = Path(config[p]["backup_dir"], "grenier_%s" % p)
+                        temp_dir = Path(config[p].get("temp_dir", "/tmp/grenier_%s" % p))
                         rclone_config_file = Path(config[p].get("rclone_config_file",
                                                                 "/home/%s/.rclone.conf" % getpass.getuser()))
                         assert rclone_config_file.exists()

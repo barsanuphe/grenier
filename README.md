@@ -193,7 +193,7 @@ Here is the general structure of how to describe a repository for **grenier**:
             - rclone_remote_name
 
 **Grenier** will automatically create a subdirectory
-`bup_[repository_name]` in backup_dir.
+`grenier_[repository_name]` in backup_dir.
 
 `rclone_config_file` defaults to ~/.rclone.conf if not specified.
 **Grenier** does not configure rclone backends for you.

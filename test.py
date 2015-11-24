@@ -21,7 +21,7 @@ class TestClass(unittest.TestCase):
         # repositories
         test_repo = self.grenier.repositories[0]
         self.assertEqual(test_repo.name, "test1")
-        self.assertEqual(test_repo.backup_dir, Path("test_files/backup/bup_test1"))
+        self.assertEqual(test_repo.backup_dir, Path("test_files/backup/grenier_test1"))
         self.assertTrue(test_repo.backup_dir.exists())
         self.assertEqual(test_repo.passphrase, "test1_passphrase")
 
@@ -184,6 +184,7 @@ class TestClass(unittest.TestCase):
 
             # cleanup
             shutil.rmtree(str(r.temp_dir))
+            shutil.rmtree(str(remote_path))
 
     def test_120_recover_files_from_remote_cloud(self):
         restore_path = Path("test_files", "restore_cloud")
