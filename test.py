@@ -6,7 +6,6 @@ from grenier.grenier import Grenier
 
 
 class TestClass(unittest.TestCase):
-
     def setUp(self):
         self.grenier = Grenier(Path("test_files", "test.yaml"))
 
@@ -21,8 +20,8 @@ class TestClass(unittest.TestCase):
         # repositories
         test_repo = self.grenier.repositories[0]
         self.assertEqual(test_repo.name, "test1")
-        self.assertEqual(test_repo.backup_dir, Path("test_files/backup/grenier_test1"))
-        self.assertTrue(test_repo.backup_dir.exists())
+        self.assertEqual(test_repo.repository_path, Path("test_files/backup/grenier_test1"))
+        self.assertTrue(test_repo.repository_path.exists())
         self.assertEqual(test_repo.passphrase, "test1_passphrase")
 
         # sources
@@ -45,7 +44,7 @@ class TestClass(unittest.TestCase):
             success, number_of_files = r.save(display=False)
             self.assertTrue(success)
             self.assertEqual(number_of_files, 5)
-            repo_contents = [str(el) for el in r.backup_dir.rglob("*")]
+            repo_contents = [str(el) for el in r.repository_path.rglob("*")]
             self.assertNotEqual(len(repo_contents), 0)
 
     def test_030_fuse(self):
@@ -168,7 +167,7 @@ class TestClass(unittest.TestCase):
         for r in self.grenier.repositories:
             remote_path = Path("/tmp/grenier")
 
-            success, err_log = r.recover_from_folder(remote_path, r.temp_dir, display=False)
+            success, err_log = r.recover(remote_path, r.temp_dir, display=False)
             self.assertTrue(success)
             self.assertEqual(err_log, "")
 
@@ -190,9 +189,9 @@ class TestClass(unittest.TestCase):
         restore_path = Path("test_files", "restore_cloud")
         self.grenier.open_config()
         for r in self.grenier.repositories:
-            success, output = r.recover_from_cloud("test_cloud_container",
-                                                   restore_path,
-                                                   display=False)
+            success, output = r.recover("test_cloud_container",
+                                        restore_path,
+                                        display=False)
             self.assertTrue(success)
             self.assertEqual(output, "")
 

@@ -133,7 +133,7 @@ def main():
                                 dest='backup_target',
                                 action='store',
                                 nargs="+",
-                                metavar="BACKUP_TARGET_NAME",
+                                metavar="REMOTE",
                                 help='backup selected repositories to the cloud'
                                      ' or usb drives, or to "all".')
     group_projects.add_argument('-c',
@@ -162,6 +162,12 @@ def main():
                                 action='store_true',
                                 default=False,
                                 help='list when you last backed up repositories.')
+    group_projects.add_argument('--recover',
+                                dest='recover',
+                                action='store',
+                                nargs=2,
+                                metavar=("REMOTE", "TARGET"),
+                                help='recover repository from remote to target.')
     args = parser.parse_args()
     logger.debug(args)
 
@@ -239,6 +245,9 @@ def main():
 
                     if args.restore:
                         p.restore(Path(args.restore[0]))
+
+                    if args.recover:
+                        p.recover(args.recover[0], args.recover[1])
 
             if args.last_synced:
                 g.show_last_synced()

@@ -3,6 +3,7 @@ import os
 from grenier.logger import *
 
 import notify2
+import yaml
 from progressbar import Bar, Counter, ETA, Percentage, ProgressBar
 
 
@@ -152,3 +153,31 @@ def umount(path):
         os.system("fusermount -u %s" % path)
 
 
+# Other things
+# -------------------
+
+
+def backup_encfs_xml(xml_path, repository_name):
+    # defaut xml backup location
+    # TODO: document in README
+    backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
+    if not backup_dir.exists():
+        backup_dir.mkdir(parents=True)
+    new_path = Path(backup_dir, "%s.xml" % repository_name)
+    try:
+        new_path.write_bytes(xml_path.read_bytes())
+        return True
+    except FileNotFoundError as err:
+        print(err)
+        return False
+
+
+def update_or_create_sync_file(path, backup_name):
+    if not path.exists():
+        synced = {}
+    else:
+        with open(path.as_posix(), 'r') as previous_version:
+            synced = yaml.load(previous_version)
+    synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
+    with open(path.as_posix(), 'w') as last_synced_file:
+        yaml.dump(synced, last_synced_file, default_flow_style=False)
