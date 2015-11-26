@@ -1,6 +1,7 @@
 test1:
+    backend: bup
     backup_dir: test_files/backup
-    passphrase: test1_passphrase
+    passphrase: test_passphrase
     sources:
         folder1:
             dir: test_files/folder1
@@ -8,6 +9,23 @@ test1:
         folder2:
             dir: test_files/folder2
     temp_dir: test_files/fuse
+    rclone_config_file: test_files/rclone.conf
+    remotes:
+        - DISK1
+        - /tmp/grenier
+        - test_cloud_container
+        - fake_cloud
+test2:
+    backend: restic
+    backup_dir: test_files/backup
+    passphrase: test_passphrase
+    sources:
+        folder1:
+            dir: test_files/folder1
+            excluded: ["ignored"]
+        folder2:
+            dir: test_files/folder2
+    temp_dir: test_files/fuse2
     rclone_config_file: test_files/rclone.conf
     remotes:
         - DISK1

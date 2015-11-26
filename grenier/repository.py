@@ -4,10 +4,11 @@ from grenier.helpers import *
 from grenier.remote import GrenierRemote
 from grenier.source import GrenierSource
 from grenier.backend_bup import BupBackend
+from grenier.backend_restic import ResticBackend
 
 
 class GrenierRepository(object):
-    def __init__(self, name, repository_path, temp_dir, rclone_config_file, passphrase=None):
+    def __init__(self, name, backend, repository_path, temp_dir, rclone_config_file, passphrase=None):
         self.name = name
         self.rclone_config_file = rclone_config_file
         self.temp_dir = temp_dir
@@ -25,7 +26,12 @@ class GrenierRepository(object):
         self.just_synced = []
 
         # TODO choose backend from yaml
-        self.backend = BupBackend(self.repository_path)
+        if backend == "bup":
+            self.backend = BupBackend(self.repository_path)
+        elif backend == "restic":
+            self.backend = ResticBackend(self.repository_path, self.passphrase)
+        else:
+            raise Exception("Unknown backend %s" % backend)
 
     def add_source(self, name, target_dir, excluded=None):
         self.sources.append(GrenierSource(name, target_dir, excluded))

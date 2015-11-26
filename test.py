@@ -8,6 +8,7 @@ from grenier.grenier import Grenier
 class TestClass(unittest.TestCase):
     def setUp(self):
         self.grenier = Grenier(Path("test_files", "test.yaml"))
+        print()
 
     def tearDown(self):
         del self.grenier
@@ -15,32 +16,53 @@ class TestClass(unittest.TestCase):
     def test_010_open_config(self):
         self.assertTrue(self.grenier.open_config())
         self.assertIsNotNone(self.grenier.repositories)
-        self.assertEqual(len(self.grenier.repositories), 1)
+        self.assertEqual(len(self.grenier.repositories), 2)
 
-        # repositories
-        test_repo = self.grenier.repositories[0]
-        self.assertEqual(test_repo.name, "test1")
-        self.assertEqual(test_repo.repository_path, Path("test_files/backup/grenier_test1"))
-        self.assertTrue(test_repo.repository_path.exists())
-        self.assertEqual(test_repo.passphrase, "test1_passphrase")
+        for test_repo in self.grenier.repositories:
+            self.assertIn(test_repo.name, ["test1", "test2"])
+            if test_repo.name == "test1":
+                self.assertEqual(test_repo.backend.name, "bup")
+                self.assertEqual(test_repo.repository_path, Path("test_files/backup/grenier_test1"))
+            elif test_repo.name == "test2":
+                self.assertEqual(test_repo.backend.name, "restic")
+                self.assertEqual(test_repo.repository_path, Path("test_files/backup/grenier_test2"))
 
-        # sources
-        self.assertEqual(len(test_repo.sources), 2)
-        for source in test_repo.sources:
-            self.assertIn(source.name, ["folder1", "folder2"])
-            if source.name == "folder1":
-                self.assertEqual(source.target_dir, Path("test_files/folder1"))
-                self.assertListEqual(source.excluded_extensions, ["ignored"])
-            else:
-                self.assertEqual(source.target_dir, Path("test_files/folder2"))
-                self.assertListEqual(source.excluded_extensions, [])
+            # repositories
+            self.assertTrue(test_repo.repository_path.exists())
+            self.assertEqual(test_repo.passphrase, "test_passphrase")
 
-        # remotes
-        self.assertEqual(len(test_repo.remotes), 4)
+            # sources
+            self.assertEqual(len(test_repo.sources), 2)
+            for source in test_repo.sources:
+                self.assertIn(source.name, ["folder1", "folder2"])
+                if source.name == "folder1":
+                    self.assertEqual(source.target_dir, Path("test_files/folder1"))
+                    self.assertListEqual(source.excluded_extensions, ["ignored"])
+                else:
+                    self.assertEqual(source.target_dir, Path("test_files/folder2"))
+                    self.assertListEqual(source.excluded_extensions, [])
+
+            # remotes
+            self.assertEqual(len(test_repo.remotes), 4)
+
+    def test_015_init(self):
+        self.grenier.open_config()
+        for r in self.grenier.repositories:
+            success, err_log = r.init(display=False)
+            self.assertTrue(success)
+
+            # test not empty
+            repo_contents = [str(el) for el in r.repository_path.rglob("*")]
+            self.assertNotEqual(len(repo_contents), 0)
+            # TODO better tests?
+
+            # cleanup
+            shutil.rmtree(str(r.repository_path))
 
     def test_020_save(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
+            print("Saving %s" % r.name)
             success, number_of_files = r.save(display=False)
             self.assertTrue(success)
             self.assertEqual(number_of_files, 5)

@@ -25,7 +25,7 @@ setup(
     keywords='backup bup configuration wrapper',
     packages=['grenier'],
 
-    install_requires=['pyyaml', 'notify2', 'progressbar', 'pyxdg'],
+    install_requires=['pyyaml', 'notify2', 'progressbar', 'pyxdg', 'pexpect'],
 
 
     # If there are data files included in your packages that need to be

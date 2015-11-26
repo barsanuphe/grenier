@@ -37,10 +37,10 @@ def encfs_command(directory1, directory2, password, encfs_xml_path=None, reverse
         return False, output
 
 
-def bup_command(cmd, backup_directory, quiet=False, number_of_items=None,
+def bup_command(cmd, repository_path, quiet=False, number_of_items=None,
                 pbar_title="", save_output=True):
     log_cmd(cmd)
-    env_dict = {"BUP_DIR": str(backup_directory)}
+    env_dict = {"BUP_DIR": str(repository_path)}
     output = ""
 
     if number_of_items and not quiet:
