@@ -48,7 +48,9 @@ try:
                 print(text)
         if save:
             logger.debug(text)
+
 except ImportError:
+
     def log(text, display=True, save=True, color=None):
         if display:
             print(text)
@@ -73,7 +75,7 @@ def yellow(text, display=True):
 
 
 def log_cmd(cmd):
-    logger.debug(" ".join(cmd))
+    logger.debug("CMD: " + " ".join(cmd))
 
 
 def generate_pbar(title, number_of_elements):

@@ -1,5 +1,6 @@
 import sys
-from grenier.logger import *
+from grenier.logger import logger
+from grenier.checks import external_binaries_available
 from grenier.helpers import *
 from grenier.remote import GrenierRemote
 from grenier.source import GrenierSource
@@ -25,13 +26,13 @@ class GrenierRepository(object):
         self.passphrase = passphrase
         self.just_synced = []
 
-        # TODO choose backend from yaml
-        if backend == "bup":
+        # check that the backend is available...
+        if backend == "bup" and external_binaries_available("bup") and external_binaries_available("encfs"):
             self.backend = BupBackend(self.repository_path)
-        elif backend == "restic":
+        elif backend == "restic" and external_binaries_available("restic"):
             self.backend = ResticBackend(self.repository_path, self.passphrase)
         else:
-            raise Exception("Unknown backend %s" % backend)
+            raise Exception("Unknown backend %s, or missing dependancies." % backend)
 
     def add_source(self, name, target_dir, excluded=None):
         self.sources.append(GrenierSource(name, target_dir, excluded))
@@ -49,7 +50,7 @@ class GrenierRepository(object):
 
     def check_and_repair(self, display=True):
         yellow("+ Checking and repairing repository.", display)
-        return self.backend.check(generate=False, display=display)
+        return self.backend.check(display=display)
 
     def save(self, check_before=False, display=True):
         starting_time = time.time()
@@ -61,17 +62,16 @@ class GrenierRepository(object):
             if check_before:
                 self.check_and_repair(display)
             original_size = get_folder_size(self.repository_path)
-            success, total_number_of_files = self.backend.save(self.sources, display)
+            success, errlog = self.backend.save(self.sources, display)
             if success:
                 new_size = get_folder_size(self.repository_path)
                 delta = new_size - original_size
-                green("+ Backed up %s files." % total_number_of_files, display)
                 green("+ Final repository size: %s (+%s)." % (readable_size(new_size),
                                                               readable_size(delta)), display)
                 green("+ Backup done in %.2fs." % (time.time() - starting_time), display)
             else:
                 red("!!! Error saving repository, stopping.", display)
-            return success, total_number_of_files
+            return success, errlog
 
     def sync_remote(self, remote_name, display=False):
         remote = self._find_remote_by_name(remote_name)
@@ -84,8 +84,8 @@ class GrenierRepository(object):
             if remote.is_cloud:
                 save_success, err_log = self.backend.sync_to_cloud(self.name, remote,
                                                                    self.rclone_config_file,
-                                                                   self.temp_dir,
-                                                                   self.passphrase,
+                                                                   encfs_mount=self.temp_dir,
+                                                                   password=self.passphrase,
                                                                    display=display)
             elif remote.is_disk or remote.is_directory:
                 save_success, err_log = self.backend.sync_to_folder(self.name, remote,

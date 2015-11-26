@@ -63,15 +63,16 @@ class TestClass(unittest.TestCase):
         self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Saving %s" % r.name)
-            success, number_of_files = r.save(display=False)
+            success, output = r.save(display=False)
             self.assertTrue(success)
-            self.assertEqual(number_of_files, 5)
+
             repo_contents = [str(el) for el in r.repository_path.rglob("*")]
             self.assertNotEqual(len(repo_contents), 0)
 
     def test_030_fuse(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
+            print("Mounting %s" % r.name)
             r.fuse(r.temp_dir, display=False)
             fuse_contents = [str(el.relative_to(r.temp_dir)) for el in r.temp_dir.rglob("*")]
             self.assertNotEqual(len(fuse_contents), 0)
@@ -99,7 +100,7 @@ class TestClass(unittest.TestCase):
             success, out = r.check_and_repair(display=False)
             self.assertTrue(success)
             self.assertEqual(out, "")
-            # TODO what else to check?
+            # TODO corrupt one file and check again!!
 
     def test_060_sync_to_folder(self):
         self.grenier.open_config()
@@ -117,6 +118,7 @@ class TestClass(unittest.TestCase):
             # TODO check contents?
 
             # TODO cleanup
+            shutil.rmtree(str(remote_path))
 
     def test_070_sync_to_disk(self):
         self.grenier.open_config()
@@ -151,9 +153,10 @@ class TestClass(unittest.TestCase):
             self.assertTrue(remote.is_cloud)
 
             self.assertTrue(r.sync_remote("test_cloud_container", display=False))
-            # testing encfs xml backup
-            xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
-            self.assertTrue(xml.exists())
+            if r.name == "test1":
+                # testing encfs xml backup
+                xml = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml", "%s.xml" % r.name)
+                self.assertTrue(xml.exists())
             # TODO test remote file size vs local?
 
             # TODO cleanup: rclone purge test_cloud_container:test1?
@@ -167,6 +170,7 @@ class TestClass(unittest.TestCase):
         self.grenier.open_config()
         restore_path = Path("test_files/restore")
         for r in self.grenier.repositories:
+            print("Restoring %s." % r.name)
             success, output = r.restore(restore_path, display=False)
             self.assertTrue(success)
             self.assertEqual(output, "")
@@ -184,11 +188,14 @@ class TestClass(unittest.TestCase):
             # cleanup
             shutil.rmtree(str(restore_path))
 
-    def test_110_recover_files_from_remote_folder(self):
+    def test_115_recover_files_from_remote_folder(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
+            print("Recovering %s." % r.name)
+            # copying before test
             remote_path = Path("/tmp/grenier")
-
+            self.assertTrue(r.sync_remote(str(remote_path), display=False))
+            # recover what was just rsynced
             success, err_log = r.recover(remote_path, r.temp_dir, display=False)
             self.assertTrue(success)
             self.assertEqual(err_log, "")
@@ -211,21 +218,28 @@ class TestClass(unittest.TestCase):
         restore_path = Path("test_files", "restore_cloud")
         self.grenier.open_config()
         for r in self.grenier.repositories:
+            print("Recovering %s." % r.name)
             success, output = r.recover("test_cloud_container",
                                         restore_path,
                                         display=False)
             self.assertTrue(success)
-            self.assertEqual(output, "")
 
             # check files
             recovered = [str(el.relative_to(restore_path)) for el in restore_path.rglob("*")]
             self.assertNotEqual(recovered, [])
-            self.assertTrue("bupindex" in recovered)
+            if r.name == "test1":
+                self.assertTrue("bupindex" in recovered)
+            elif r.name == "test2":
+                self.assertTrue("config" in recovered)
 
             #  cleanup
             umount(restore_path)
             shutil.rmtree(str(restore_path))
             shutil.rmtree(str(r.temp_dir))
+
+    def test_130_list(self):
+        # TODO!
+        pass
 
 
 if __name__ == '__main__':

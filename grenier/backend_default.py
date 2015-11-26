@@ -67,18 +67,20 @@ class Backend(object):
         pass
 
     def save(self, sources, display=True):
+        output = ""
         total_number_of_files = 0
+        overall_success = True
         for source in sources:
-            success, number_of_files = self._save_source(source, display)
-            if success:
-                total_number_of_files += number_of_files
-            else:
-                return False, total_number_of_files
-        return True, total_number_of_files
+            success, source_output = self._save_source(source, display)
+            if not success:
+                red("!! Error saving %s!! " % source.name)
+            output += source_output
+            overall_success = overall_success and success
+        return overall_success, output
 
     def _save_source(self, source, display=True):
         # redefine in subclass
-        return True, 0
+        return True, ""
 
     def restore(self, sources, target, display=True):
         overall_success = True
@@ -106,12 +108,14 @@ class Backend(object):
                                        repository_name)
         return success, err_log
 
-    def sync_to_cloud(self, repository_name, remote, rclone_config_file):
+    def sync_to_cloud(self, repository_name, remote, rclone_config_file, encfs_mount=None,
+                      password="", display=True):
+        # TODO: update sync yaml aussi!!!!!
         return rclone_command(rclone_config_file,
                               "sync",
                               self.repository_path,
                               "%s:%s" % (remote.name, repository_name),
-                              quiet=True)
+                              quiet=not display)
 
     def recover_from_folder(self, remote, target, display=True):
         if not create_or_check_if_empty(target):
@@ -137,3 +141,7 @@ class Backend(object):
 
     def unfuse(self, mount_path):
         umount(mount_path)
+
+    def list(self, display=True):
+        # TODO !!
+        pass

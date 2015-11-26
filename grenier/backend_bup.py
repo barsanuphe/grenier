@@ -102,7 +102,7 @@ class BupBackend(Backend):
         save_success, output = self._bup_save(source, number_of_files, display=display)
         yellow("+ Generating redundancy files.", display)
         fsck_success, fsck_output = self.check(generate=True, display=display)
-        return index_success and save_success and fsck_success, number_of_files
+        return index_success and save_success and fsck_success, output + fsck_output
 
     def _bup_index(self, source):
         cmd = ["index", "-vv"]
@@ -125,13 +125,13 @@ class BupBackend(Backend):
                            pbar_title="Saving: ",
                            save_output=False)
 
-    def fuse(self, mount_path, display=True):
-        if create_or_check_if_empty(mount_path):
-            return bup_command(["fuse", str(mount_path)], self.repository_path, quiet=True)
-        else:
-            return False, "!!! Could not mount %s. Mount path exists and is not empty." % mount_path
+    def _restore_source(self, source, target, display=True):
+        sub_target = Path(target, source.name)
+        return bup_command(["restore", "-C", str(sub_target), "/%s/latest/." % source.name],
+                           self.repository_path,
+                           quiet=not display)
 
-    def sync_to_cloud(self, repository_name, remote, rclone_config_file, encfs_mount=Path(),
+    def sync_to_cloud(self, repository_name, remote, rclone_config_file, encfs_mount=None,
                       password="", display=True):
 
         backup_success = False
@@ -155,12 +155,6 @@ class BupBackend(Backend):
             umount(encfs_mount)
 
         return success and backup_success and rclone_success, output_encfs + output_rclone
-
-    def _restore_source(self, source, target, display=True):
-        sub_target = Path(target, source.name)
-        return bup_command(["restore", "-C", str(sub_target), "/%s/latest/." % source.name],
-                           self.repository_path,
-                           quiet=not display)
 
     def recover_from_cloud(self, repository_name, remote, target, rclone_config_file,
                            display=True, encfs_path=None, password=None):
@@ -187,3 +181,9 @@ class BupBackend(Backend):
             return encfs_success, encfs_log
         else:
             return False, rclone_log
+
+    def fuse(self, mount_path, display=True):
+        if create_or_check_if_empty(mount_path):
+            return bup_command(["fuse", str(mount_path)], self.repository_path, quiet=True)
+        else:
+            return False, "!!! Could not mount %s. Mount path exists and is not empty." % mount_path

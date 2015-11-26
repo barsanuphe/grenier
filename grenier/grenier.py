@@ -1,12 +1,15 @@
 #!/usr/env/python
 import getpass
 import argparse
+
 # grenier modules
-from grenier.checks import *
+from grenier.checks import check_third_party_modules
 from grenier.logger import *
 from grenier.repository import *
 from grenier.helpers import *
+
 # 3rd party modules
+check_third_party_modules()
 import yaml
 import xdg.BaseDirectory
 
@@ -29,7 +32,7 @@ class Grenier(object):
 
     def open_config(self):
         if self.config_file.exists():
-            try:
+           # try:
                 with open(str(self.config_file), 'r') as f:
                     config = yaml.load(f)
                     for p in config:
@@ -54,10 +57,10 @@ class Grenier(object):
                         bp.add_remotes(config[p].get("remotes", []))
                         self.repositories.append(bp)
                 return True
-            except Exception as err:
-                print("Invalid configuration file!!")
-                print(err)
-                return False
+           # except Exception as err:
+            ##    print("Invalid configuration file!!")
+               # print(err)
+              #  return False
         else:
             print("No configuration file found!")
             return False

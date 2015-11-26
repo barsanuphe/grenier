@@ -10,4 +10,9 @@ class GrenierSource(object):
         else:
             self.excluded_extensions = []
 
+    def __str__(self):
+        return "Source %s: \n\tPath: %s\n\tExluded extensions: %s" % (self.name,
+                                                                      self.target_dir,
+                                                                      " ".join(self.excluded_extensions))
+
     # TODO : get when last synced, etc
