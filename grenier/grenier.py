@@ -32,19 +32,19 @@ class Grenier(object):
 
     def open_config(self):
         if self.config_file.exists():
-           # try:
+            try:
                 with open(str(self.config_file), 'r') as f:
                     config = yaml.load(f)
                     for p in config:
                         backend = config[p]["backend"]
-                        backup_dir = Path(config[p]["backup_dir"], "grenier_%s" % p)
+                        repository_path = Path(config[p]["repository_path"], "grenier_%s" % p)
                         temp_dir = Path(config[p].get("temp_dir", "/tmp/grenier_%s" % p))
                         rclone_config_file = Path(config[p].get("rclone_config_file",
                                                                 "/home/%s/.rclone.conf" % getpass.getuser()))
                         assert rclone_config_file.exists()
                         bp = GrenierRepository(p,
                                                backend,
-                                               backup_dir,
+                                               repository_path,
                                                temp_dir,
                                                rclone_config_file,
                                                config[p].get("passphrase", None))
@@ -57,10 +57,10 @@ class Grenier(object):
                         bp.add_remotes(config[p].get("remotes", []))
                         self.repositories.append(bp)
                 return True
-           # except Exception as err:
-            ##    print("Invalid configuration file!!")
-               # print(err)
-              #  return False
+            except Exception as err:
+                print("Invalid configuration file!!")
+                print(err)
+                return False
         else:
             print("No configuration file found!")
             return False

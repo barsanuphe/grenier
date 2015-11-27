@@ -68,7 +68,6 @@ class Backend(object):
 
     def save(self, sources, display=True):
         output = ""
-        total_number_of_files = 0
         overall_success = True
         for source in sources:
             success, source_output = self._save_source(source, display)

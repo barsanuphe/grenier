@@ -119,7 +119,7 @@ class TestClass(unittest.TestCase):
             # TODO check contents?
 
             # TODO cleanup
-            shutil.rmtree(str(remote_path))
+            #shutil.rmtree(str(remote_path))
 
     def test_070_sync_to_disk(self):
         self.grenier.open_config()

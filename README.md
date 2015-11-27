@@ -2,16 +2,13 @@
 
 ## What it is
 
-**Grenier** is a python3 wrapper around [bup](https://github.com/bup/bup),
-[rsync](https://rsync.samba.org/) and [rclone](http://rclone.org/), using
-a configuration file to manage repositories.
+**Grenier** is a python3 wrapper around either [bup](https://github.com/bup/bup),
+or [restic](https://restic.github.io) to manage backup repositories using
+a configuration file.
 
-
-**Grenier** can create new archives in these repositories, and also copy them to
-external drives or to cloud storage (see rclone manpage to see which are
-supported).
-Files are encrypted with [encfs](https://github.com/vgough/encfs) before being
-sent over the Internets.
+**Grenier** can then sync the backups to local or cloud remotes using
+[rsync](https://rsync.samba.org/) and [rclone](http://rclone.org/).
+If using `bup`, files are encrypted with [encfs](https://github.com/vgough/encfs) before being `rclone`d to the Internets.
 
 It can do other things too, probably. You'll just have to read on.
 
@@ -29,18 +26,35 @@ Please note this is not stable yet, as in: **You may lose data.** To be honest
 
 ### Requirements
 
-**Grenier** runs on Linux (tested in Archlinux only).
+**Grenier** runs on Linux (tested in [Archlinux](https://www.archlinux.org/)
+only).
 
 Current requirements:
 - python (3.4+)
 - python-yaml
 - python-notify2
+- python-progressbar
+- python-xdg
 
 External binaries required:
-- [bup](https://github.com/bup/bup)
-- [rsync](https://rsync.samba.org/) (for external drives backup)
-- [rclone](http://rclone.org/) (for google drive and hubic backup)
-- [encfs](https://github.com/vgough/encfs) (for encryption before saving to cloud)
+
++ Bup backend:
+
+    - [bup](https://github.com/bup/bup)
+    - [encfs](https://github.com/vgough/encfs) (for encryption before saving to cloud)
+
+
++ Restic backend:
+
+    - [restic](https://restic.github.io) to manage backup repositories using
+    a configuration file.
+
+
++ Sync:
+
+    - [rsync](https://rsync.samba.org/) (for external drives backup)
+    - [rclone](http://rclone.org/) (for google drive and hubic backup)
+
 
 ### Installation
 
@@ -54,13 +68,12 @@ To uninstall (not sure why one would want to do such a thing), run:
     $ sudo pip uninstall grenier
 
 The configuration file *grenier.yaml* is expected to be in
-`$XDG_CONFIG_HOME/grenier/`. You might want to `ln -s` your actual configuration
-file there, because let's face it, `$XDG_CONFIG_HOME` is a sad and lonely place
-you never visit.
+`$XDG_CONFIG_HOME/grenier/`.
+You might want to `ln -s` your actual configuration file there, because let's
+face it, `$XDG_CONFIG_HOME` is a sad and lonely place you never visit.
 
 Logs are in `$XDG_DATA_HOME/grenier`, along with another yaml file that keeps
-track of when you last backed up you repositories to another hard drive or to
-the cloud (see `--last-synced`).
+track of when you last backed up your repositories (see `--last-synced`).
 
 ### Usage
 
@@ -110,11 +123,10 @@ the cloud (see `--last-synced`).
 The following commands assume the configuration file is as
 [described here](#grenieryaml-example).
 
-This creates timestamped archives of all sources for the `documents` repository
-(something like `2015-04-09_22h48_work` and `2015-04-09_22h53_notes`), as
-described in the configuration file. If the repository does not exist, it will
-be created.
-Also, par2 files are automatically generated.
+This creates a new snapshot of all sources for the `documents` repository, as
+described in the configuration file.
+If the repository does not exist, it is created.
+Also, for the `bup` backend, `par2` redundancy files are automatically generated.
 
     grenier -n documents -b
 
@@ -128,14 +140,14 @@ drive:
 
     grenier -n all -s disk1
 
-This sends `documents` to both google drive and hubic, provided "google" and
-"hubic" are previously configured rclone remotes:
+This sends `documents` to both google drive and hubic, provided `google` and
+`hubic` are previously configured `rclone` remotes:
 
     grenier -n documents -s google hubic
 
 This sends `documents` to all defined and available backup remotes (`disk1`,
-google drive, hubic):
-
+`google`, `hubic`):
+`
     grenier -n documents -s all
 
 This predictably does pretty much everything:
@@ -159,7 +171,7 @@ Recovering a repository from the cloud to a directory:
     grenier -n documents --recover hubic /home/user/hope_this_works/
 
 When did you last update the copies of your repositories on that hard drive
-you dropped off at your cousin's home?
+you deposited next to your gold bars at the bank?
 
     grenier --last-synced
 
@@ -167,19 +179,24 @@ you dropped off at your cousin's home?
 
 **Grenier** uses a yaml file to describe
 - repositories,
+- which backend to use,
 - what to back up in each,
 - where to keep extra copies
-- sensitive information such as passphrases, to keep things simple.
+- sensitive information **such as passphrases**, to keep things simple.
 
 **The user is responsible for keeping this file safe**.
+Not keeping this file safe defeats the purpose of using encrypted backups.
 
-Encfs uses xml files to describe how a repository is encoded.
+
+If using `encfs`: `encfs` uses xml files to describe how a repository is encoded.
 You probably should keep them around.
+**Grenier** backs them up next to its logs.
 
 Here is the general structure of how to describe a repository for **grenier**:
 
     repository_name:
-        backup_dir: /path/to/repository
+        backend: backend_name
+        repository_path: /path/to/repository
         passphrase: clear_passphrase
         sources:
             source1_name:
@@ -192,10 +209,12 @@ Here is the general structure of how to describe a repository for **grenier**:
             - /absolute/path/to/backup/folder
             - rclone_remote_name
 
-**Grenier** will automatically create a subdirectory
-`grenier_[repository_name]` in backup_dir.
+For now, `backend` can either be `bup` or `restic`.
 
-`rclone_config_file` defaults to ~/.rclone.conf if not specified.
+**Grenier** will automatically create a subdirectory
+`grenier_[repository_name]` in `repository_path`.
+
+`rclone_config_file` defaults to `~/.rclone.conf` if not specified.
 **Grenier** does not configure rclone backends for you.
 You'll have to do this on your lonesome, before running **grenier**.
 
@@ -204,7 +223,8 @@ You'll have to do this on your lonesome, before running **grenier**.
 For example, this is a file defining two repositories:
 
     documents:
-        backup_dir: /home/user/backup
+        backend: bup
+        repository_path: /home/user/backup
         passphrase: CRxoKuMUpxpokpkpk5FF-hgookokok36wc7H
         sources:
             work:
@@ -219,7 +239,8 @@ For example, this is a file defining two repositories:
             - google
             - hubic
     music:
-        backup_dir: /home/user/backup
+        backend: restic
+        repository_path: /home/user/backup
         passphrase: vqrlkjmohmohiuhç_hç_hçàhlmhmj_jmlkj
         sources:
             flac_music:

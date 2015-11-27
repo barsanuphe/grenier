@@ -83,10 +83,12 @@ class ResticBackend(Backend):
     def fuse(self, mount_path, display=True):
         # TODO: restic only mounts the repo while active, quitting the command unmounts.
         # TODO: see what can be done about that.
-        if create_or_check_if_empty(mount_path):
-            return restic_command(["mount", str(mount_path)], self.repository_path, self.passphrase)
-        else:
-            return False, "!!! Could not mount %s. Mount path exists and is not empty." % mount_path
+        return False, "Mounting not supported with restic. Use 'restic -r /path/to/repo mount'."
+        # if create_or_check_if_empty(mount_path):
+        #     return restic_command(["mount", str(mount_path)],
+        #                           self.repository_path, self.passphrase)
+        # else:
+        #     return False, "!!! Could not mount %s. Path exists and is not empty." % mount_path
 
     def list(self, display=True):
         return restic_command(["snapshots"], self.repository_path, self.passphrase)
