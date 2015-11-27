@@ -34,7 +34,6 @@ class ResticBackend(Backend):
         return restic_command(["init"], self.repository_path, self.passphrase)
 
     def check(self, display=True):
-        # TODO verif que check fail == return != 0
         return restic_command(["check"], self.repository_path, self.passphrase)
 
     def _save_source(self, source, display=True):
@@ -48,8 +47,13 @@ class ResticBackend(Backend):
             cmd = ["backup", str(source.target_dir)]
 
         success, output = restic_command(cmd, self.repository_path, self.passphrase)
-
-        # TODO: apres save, faire optimize direct? et check?
+        if success:
+            # optimize
+            optimize_success, optimize_output = restic_command(["optimize"],
+                                                               self.repository_path,
+                                                               self.passphrase)
+            success = success and optimize_success
+            output += optimize_output
 
         return success, output
 

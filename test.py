@@ -97,6 +97,7 @@ class TestClass(unittest.TestCase):
     def test_050_check(self):
         self.grenier.open_config()
         for r in self.grenier.repositories:
+            print("Checking %s" % r.name)
             success, out = r.check_and_repair(display=False)
             self.assertTrue(success)
             self.assertEqual(out, "")
