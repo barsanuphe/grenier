@@ -173,7 +173,6 @@ class TestClass(unittest.TestCase):
             print("Restoring %s." % r.name)
             success, output = r.restore(restore_path, display=False)
             self.assertTrue(success)
-            self.assertEqual(output, "")
 
             # testing restored files
             restored = [str(el.relative_to(restore_path)) for el in restore_path.rglob("*")]

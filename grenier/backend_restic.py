@@ -1,6 +1,7 @@
+from datetime import datetime
+
 from grenier.helpers import *
 from grenier.backend_default import Backend
-from subprocess import Popen
 
 
 def restic_command(cmd, repository_path, passphrase):
@@ -8,8 +9,16 @@ def restic_command(cmd, repository_path, passphrase):
     output = ""
     env_dict = {"RESTIC_REPOSITORY": str(repository_path),
                 "RESTIC_PASSWORD": passphrase}
-    with Popen(["restic"] + cmd, env=env_dict) as p:
-        p.communicate()
+    if cmd[0] == "backup":
+        redirect = None
+    else:
+        redirect = PIPE
+    with Popen(["restic"] + cmd, stdout=redirect, stderr=redirect, env=env_dict) as p:
+        stdout, stderr = p.communicate()
+        if stdout:
+            output = stdout.decode("utf8")
+        if stderr:
+            output += stderr.decode("utf8")
         if p.returncode == 0:
             return True, output
         else:
@@ -45,13 +54,26 @@ class ResticBackend(Backend):
         return success, output
 
     def _restore_source(self, source, target, display=True):
-        sub_target = Path(target, source.name)
-
         success, output = self.list(display)
-        # TODO: get list of snapshots, extract latest hash
-        snapshot_hash = "XXXXX"
+        if not success:
+            return False, "Unable to list snapshots!!!"
 
-        return restic_command(["restore", snapshot_hash, "--target", str(sub_target)],
+        snapshot_hash = "XXXXX"
+        snapshots = output.split("\n")[2:-1]
+        latest_date = datetime.fromtimestamp(0)
+        for snap in snapshots:
+            snap_hash, date, hour, machine, folder = [el for el in snap.split(" ") if el != '']
+            if Path(folder) == source.target_dir or Path(folder).samefile(source.target_dir):
+                # keep latest hash
+                snapshot_date = datetime.strptime(date+hour, "%Y-%m-%d%H:%M:%S")
+                if snapshot_date > latest_date:
+                    latest_date = snapshot_date
+                    snapshot_hash = snap_hash
+
+        yellow("Restoring %s from snapshot %s [saved on %s]." % (source.name,
+                                                                 snapshot_hash,
+                                                                 latest_date.strftime("%Y-%m-%d %H:%M:%S")))
+        return restic_command(["restore", snapshot_hash, "--target", str(target)],
                               self.repository_path, self.passphrase)
 
     def fuse(self, mount_path, display=True):
@@ -63,10 +85,5 @@ class ResticBackend(Backend):
             return False, "!!! Could not mount %s. Mount path exists and is not empty." % mount_path
 
     def list(self, display=True):
-        # TODO pb: output is now empty: cmd output to stdout
-        success, output = restic_command(["snapshots"], self.repository_path, self.passphrase)
-        print(success)
-        print(output)
-        # TODO parse snapshots output
+        return restic_command(["snapshots"], self.repository_path, self.passphrase)
 
-        return success, output
