@@ -1,10 +1,15 @@
+# standard library
 from subprocess import PIPE, Popen, STDOUT
 import os
-from grenier.logger import *
-
+from pathlib import Path
+import getpass
+# 3rd party libs
+from keepassx.db import Database, EntryNotFoundError, InvalidPasswordError
 import notify2
 import yaml
 from progressbar import Bar, Counter, ETA, Percentage, ProgressBar
+# grenier
+from grenier.logger import *
 
 
 # Logging and notifications
@@ -154,6 +159,30 @@ def umount(path):
     if is_fuse_mounted(path):
         os.system("fusermount -u %s" % path)
 
+
+# keepassx integration
+# -------------------
+
+
+def find_password(db_file, repository_name):
+    password = getpass.getpass("Password for %s: " % db_file.name)
+    try:
+        with db_file.open("rb") as f:
+            db = Database(f.read(), password=password.encode("utf8"))
+    except InvalidPasswordError:
+        print("Wrong password for unlocking .kdb file!!")
+        return None, None
+    try:
+        entry = db.find_by_title(repository_name)
+        if entry.group.group_name == "grenier":
+            return password, entry.password
+        else:
+            print("Could not find kdb entry for grenier/%s!!!" % repository_name)
+            return password, None
+    except EntryNotFoundError as err:
+
+        print(err)
+        return password, None
 
 # Other things
 # -------------------

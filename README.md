@@ -35,19 +35,19 @@ Current requirements:
 - python-notify2
 - python-progressbar
 - python-xdg
+- python-keepassx
 
 External binaries required:
 
 + Bup backend:
 
     - [bup](https://github.com/bup/bup)
-    - [encfs](https://github.com/vgough/encfs) (for encryption before saving to cloud)
+    - [encfs](https://github.com/vgough/encfs) (for encryption before saving to cloud, but see [this](https://defuse.ca/audits/encfs.htm) before)
 
 
 + Restic backend:
 
-    - [restic](https://restic.github.io) to manage backup repositories using
-    a configuration file.
+    - [restic](https://restic.github.io)
 
 
 + Sync:
@@ -182,22 +182,34 @@ you deposited next to your gold bars at the bank?
 - which backend to use,
 - what to back up in each,
 - where to keep extra copies
-- sensitive information **such as passphrases**, to keep things simple.
+- where to find the passphrases, or the passphrases in clear text.
 
-**The user is responsible for keeping this file safe**.
-Not keeping this file safe defeats the purpose of using encrypted backups.
+**The user is responsible for keeping this file safe**, especially if you use
+passphrases in clear text, which is probably a bad idea.
 
+Ideally, you would point to a *passphrase-protected* `.kdb` file, which can be
+created and edited with [keepassx](https://www.keepassx.org/).
+This allows you to use arbitrarily complex passwords for the repositories, and
+complex is nice when sending files to the cloud.
+
+For the `.kdb` file to be compatible, it has to have a group called `grenier`,
+and an entry with the same name than the repository.
+And of course a password.
 
 If using `encfs`: `encfs` uses xml files to describe how a repository is encoded.
 You probably should keep them around.
 **Grenier** backs them up next to its logs.
+
+However, know that `encfs` has some [security issues](https://defuse.ca/audits/encfs.htm) that make it a poor candidate for
+cloud storage.
 
 Here is the general structure of how to describe a repository for **grenier**:
 
     repository_name:
         backend: backend_name
         repository_path: /path/to/repository
-        passphrase: clear_passphrase
+        kdb_file: /path/to/file.kdb
+        [ or passphrase: clear_passphrase]
         sources:
             source1_name:
                 dir: /path/to/source
@@ -214,18 +226,24 @@ For now, `backend` can either be `bup` or `restic`.
 **Grenier** will automatically create a subdirectory
 `grenier_[repository_name]` in `repository_path`.
 
+**Grenier** will look first for `kdb_file` as a source for passphrases,
+and second for a clear text version with `passphrase`.
+
+`temp_dir` defaults to a subdirectory in `/tmp`, change it if you have limited
+space on that drive.
+
 `rclone_config_file` defaults to `~/.rclone.conf` if not specified.
 **Grenier** does not configure rclone backends for you.
 You'll have to do this on your lonesome, before running **grenier**.
 
-### grenier.yaml example
 
-For example, this is a file defining two repositories:
+
+### grenier.yaml example
 
     documents:
         backend: bup
         repository_path: /home/user/backup
-        passphrase: CRxoKuMUpxpokpkpk5FF-hgookokok36wc7H
+        kdb_file: /home/user/secrets.kdb
         sources:
             work:
                 dir: /home/user/work

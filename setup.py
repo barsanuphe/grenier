@@ -1,5 +1,5 @@
 """Grenier.
-A wrapper around bup, encfs, rsync, and rclone.
+A wrapper around bup-encfs, restic, rsync, and rclone.
 """
 
 from setuptools import setup
@@ -7,7 +7,7 @@ from setuptools import setup
 setup(
     name='grenier',
     version='0.2.0',
-    description='A wrapper around bup, rsync, rclone and encfs.',
+    description='A wrapper around bup-encfs/restic, rsync, and rclone.',
     # long_description=long_description,
     url='https://github.com/barsanuphe/grenier',
     author='barsanuphe',
@@ -22,11 +22,10 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Programming Language :: Python :: 3.5',
     ],
-    keywords='backup bup configuration wrapper',
+    keywords='backup bup restic configuration wrapper',
     packages=['grenier'],
 
-    install_requires=['pyyaml', 'notify2', 'progressbar', 'pyxdg', 'pexpect'],
-
+    install_requires=['pyyaml', 'notify2', 'progressbar', 'pyxdg', 'pexpect', 'keepassx'],
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.

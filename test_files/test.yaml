@@ -1,7 +1,7 @@
 test1:
     backend: bup
     repository_path: test_files/backup
-    passphrase: test_passphrase
+    kdb_file: test_files/secret.kdb
     sources:
         folder1:
             dir: test_files/folder1
@@ -18,7 +18,7 @@ test1:
 test2:
     backend: restic
     repository_path: test_files/backup
-    passphrase: test_passphrase
+    passphrase: test
     sources:
         folder1:
             dir: test_files/folder1

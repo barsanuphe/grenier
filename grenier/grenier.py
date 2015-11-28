@@ -2,16 +2,17 @@
 import getpass
 import argparse
 
-# grenier modules
 from grenier.checks import check_third_party_modules
+check_third_party_modules()
+# 3rd party modules
+import yaml
+import xdg.BaseDirectory
+
+# grenier modules
 from grenier.logger import *
 from grenier.repository import *
 from grenier.helpers import *
 
-# 3rd party modules
-check_third_party_modules()
-import yaml
-import xdg.BaseDirectory
 
 # ---CONFIG---------------------------
 CONFIG_FILE = "grenier.yaml"
@@ -22,6 +23,9 @@ class Grenier(object):
     def __init__(self, config_file):
         self.config_file = config_file
         self.repositories = []
+        # dict to keep the keepassx kdb passwords, in case several repositories
+        # use the same file. Hide your RAM from prying eyes.
+        self.master_passwords = {}
 
     def __enter__(self):
         return self
@@ -39,15 +43,33 @@ class Grenier(object):
                         backend = config[p]["backend"]
                         repository_path = Path(config[p]["repository_path"], "grenier_%s" % p)
                         temp_dir = Path(config[p].get("temp_dir", "/tmp/grenier_%s" % p))
+                        default_rclone_config_file = "/home/%s/.rclone.conf" % getpass.getuser()
                         rclone_config_file = Path(config[p].get("rclone_config_file",
-                                                                "/home/%s/.rclone.conf" % getpass.getuser()))
+                                                                default_rclone_config_file))
+
+                        kdb_file = config[p].get("kdb_file", None)
+                        if kdb_file:
+                            kdb_file = Path(kdb_file)
+                            assert kdb_file.exists()
+                            if kdb_file in self.master_passwords:
+                                passphrase = self.master_passwords[kdb_file]
+                            else:
+                                master_password, repository_password = find_password(kdb_file, p)
+                                if master_password and repository_password:
+                                    self.master_passwords[kdb_file] = master_password
+                                    passphrase = repository_password
+                        else:
+                            passphrase = config[p].get("passphrase", None)
+                        # we really should have the password by now
+                        assert passphrase
+
                         assert rclone_config_file.exists()
                         bp = GrenierRepository(p,
                                                backend,
                                                repository_path,
                                                temp_dir,
                                                rclone_config_file,
-                                               config[p].get("passphrase", None))
+                                               passphrase)
                         sources_dict = config[p]["sources"]
                         for s in sources_dict:
                             bp.add_source(s,

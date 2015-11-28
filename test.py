@@ -8,12 +8,15 @@ from grenier.grenier import Grenier
 class TestClass(unittest.TestCase):
     def setUp(self):
         self.grenier = Grenier(Path("test_files", "test.yaml"))
+        self.grenier.open_config()
         print()
 
     def tearDown(self):
         del self.grenier
 
     def test_010_open_config(self):
+        # resetting config
+        self.grenier.repositories = []
         self.assertTrue(self.grenier.open_config())
         self.assertIsNotNone(self.grenier.repositories)
         self.assertEqual(len(self.grenier.repositories), 2)
@@ -29,7 +32,7 @@ class TestClass(unittest.TestCase):
 
             # repositories
             self.assertTrue(test_repo.repository_path.exists())
-            self.assertEqual(test_repo.passphrase, "test_passphrase")
+            self.assertEqual(test_repo.passphrase, "test")
 
             # sources
             self.assertEqual(len(test_repo.sources), 2)
@@ -46,7 +49,6 @@ class TestClass(unittest.TestCase):
             self.assertEqual(len(test_repo.remotes), 4)
 
     def test_015_init(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             success, err_log = r.init(display=False)
             self.assertTrue(success)
@@ -60,7 +62,6 @@ class TestClass(unittest.TestCase):
             shutil.rmtree(str(r.repository_path))
 
     def test_020_save(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Saving %s" % r.name)
             success, output = r.save(display=False)
@@ -70,7 +71,6 @@ class TestClass(unittest.TestCase):
             self.assertNotEqual(len(repo_contents), 0)
 
     def test_030_fuse(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Mounting %s" % r.name)
             r.fuse(r.temp_dir, display=False)
@@ -87,7 +87,6 @@ class TestClass(unittest.TestCase):
                     self.assertTrue("folder2/latest/test4.ignored" in fuse_contents)
 
     def test_040_unfuse(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             r.unfuse(r.temp_dir, display=False)
             fuse_contents = [str(el) for el in r.temp_dir.rglob("*")]
@@ -95,16 +94,13 @@ class TestClass(unittest.TestCase):
             self.assertFalse(is_fuse_mounted(r.temp_dir))
 
     def test_050_check(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Checking %s" % r.name)
             success, out = r.check_and_repair(display=False)
             self.assertTrue(success)
-            self.assertEqual(out, "")
             # TODO corrupt one file and check again!!
 
     def test_060_sync_to_folder(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
             remote_path = Path("/tmp/grenier")
@@ -118,11 +114,10 @@ class TestClass(unittest.TestCase):
             self.assertTrue(last_synced_yaml.exists())
             # TODO check contents?
 
-            # TODO cleanup
-            #shutil.rmtree(str(remote_path))
+            # cleanup
+            shutil.rmtree(str(remote_path))
 
     def test_070_sync_to_disk(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
 
@@ -144,7 +139,6 @@ class TestClass(unittest.TestCase):
 
     def test_080_sync_to_hubic(self):
         # needs rclone config "test_cloud_container"
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("pof", display=False))
 
@@ -163,12 +157,10 @@ class TestClass(unittest.TestCase):
             # TODO cleanup: rclone purge test_cloud_container:test1?
 
     def test_100_sync_to_undefined_cloud(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             self.assertFalse(r.sync_remote("fake_cloud", display=False))
 
     def test_110_restore_files_from_repository(self):
-        self.grenier.open_config()
         restore_path = Path("test_files/restore")
         for r in self.grenier.repositories:
             print("Restoring %s." % r.name)
@@ -189,7 +181,6 @@ class TestClass(unittest.TestCase):
             shutil.rmtree(str(restore_path))
 
     def test_115_recover_files_from_remote_folder(self):
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Recovering %s." % r.name)
             # copying before test
@@ -216,7 +207,6 @@ class TestClass(unittest.TestCase):
 
     def test_120_recover_files_from_remote_cloud(self):
         restore_path = Path("test_files", "restore_cloud")
-        self.grenier.open_config()
         for r in self.grenier.repositories:
             print("Recovering %s." % r.name)
             success, output = r.recover("test_cloud_container",
