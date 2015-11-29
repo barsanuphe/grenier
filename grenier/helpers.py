@@ -184,6 +184,34 @@ def find_password(db_file, repository_name):
         print(err)
         return password, None
 
+
+# yaml operations save file
+# -------------------
+
+def update_or_create_sync_file(path, backup_name):
+    if not path.exists():
+        synced = {}
+    else:
+        with open(path.as_posix(), 'r') as previous_version:
+            synced = yaml.load(previous_version)
+    synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
+    with open(path.as_posix(), 'w') as last_synced_file:
+        yaml.dump(synced, last_synced_file, default_flow_style=False)
+
+
+def show_last_synced(last_synced_file_path):
+    if last_synced_file_path.exists():
+        with last_synced_file_path.open() as f:
+            last_synced = yaml.load(f)
+    else:
+        last_synced = {}
+
+    for r in last_synced:
+        logger.info("%s:" % r)
+        for dest in last_synced[r]:
+            logger.info("\t%s\t%s" % (dest+(10-len(dest))*" ", last_synced[r][dest]))
+
+
 # Other things
 # -------------------
 
@@ -201,14 +229,3 @@ def backup_encfs_xml(xml_path, repository_name):
     except FileNotFoundError as err:
         print(err)
         return False
-
-
-def update_or_create_sync_file(path, backup_name):
-    if not path.exists():
-        synced = {}
-    else:
-        with open(path.as_posix(), 'r') as previous_version:
-            synced = yaml.load(previous_version)
-    synced[backup_name] = time.strftime("%Y-%m-%d_%Hh%M")
-    with open(path.as_posix(), 'w') as last_synced_file:
-        yaml.dump(synced, last_synced_file, default_flow_style=False)

@@ -16,6 +16,7 @@ from grenier.helpers import *
 
 # ---CONFIG---------------------------
 CONFIG_FILE = "grenier.yaml"
+LAST_SYNCED = "last_synced.yaml"
 
 
 # ---GRENIER---------------------------
@@ -27,6 +28,9 @@ class Grenier(object):
         # use the same file. Hide your RAM from prying eyes.
         self.master_passwords = {}
 
+        data_path = xdg.BaseDirectory.save_data_path("grenier")
+        self.last_synced_file_path = Path(data_path, LAST_SYNCED)
+
     def __enter__(self):
         return self
 
@@ -37,7 +41,7 @@ class Grenier(object):
     def open_config(self):
         if self.config_file.exists():
             try:
-                with open(str(self.config_file), 'r') as f:
+                with self.config_file.open() as f:
                     config = yaml.load(f)
                     for p in config:
                         backend = config[p]["backend"]
@@ -88,10 +92,9 @@ class Grenier(object):
             return False
 
     def export_last_sync(self):
-        data_path = xdg.BaseDirectory.save_data_path("grenier")
-        path = Path(data_path, "last_synced.yml")
-        if path.exists():
-            last_synced = yaml.load(open(path.as_posix(), 'r'))
+        if self.last_synced_file_path.exists():
+            with self.last_synced_file_path.open() as f:
+                last_synced = yaml.load(f)
         else:
             last_synced = {}
 
@@ -101,30 +104,16 @@ class Grenier(object):
                     last_synced[r.name] = {}
                 for sync in r.just_synced:
                     last_synced[r.name].update(sync)
-        yaml.dump(last_synced,
-                  open(path.as_posix(), 'w'),
-                  default_flow_style=False)
-
-    @staticmethod
-    def show_last_synced():
-        data_path = xdg.BaseDirectory.save_data_path("grenier")
-        path = Path(data_path, "last_synced.yml")
-        if path.exists():
-            last_synced = yaml.load(open(path.as_posix(), 'r'))
-        else:
-            last_synced = {}
-
-        for r in last_synced:
-            logger.info("%s:" % r)
-            for dest in last_synced[r]:
-                logger.info("\t%s:\n\t\t%s\n" % (dest, last_synced[r][dest]))
+        with self.last_synced_file_path.open("w") as f:
+            yaml.dump(last_synced, f, default_flow_style=False)
 
 
 def main():
     log("\n# # # G R E N I E R # # #", color="boldwhite")
 
     parser = argparse.ArgumentParser(description='Grenier.\nA wrapper around '
-                                                 'bup, rclone, rsync, encfs to back stuff up.')
+                                                 'bup/encfs, restic, rclone, rsync, '
+                                                 'to back stuff up.')
 
     group_config = parser.add_argument_group('Configuration',
                                              'Manage configuration files.')
@@ -233,7 +222,11 @@ def main():
     overall_start = time.time()
     try:
         with Grenier(configuration_file) as g:
-            if not g.open_config():
+
+            if args.last_synced:
+                show_last_synced(g.last_synced_file_path)
+
+            elif not g.open_config():
                 log("Invalid configuration. Exiting.", color="red", save=False)
                 sys.exit(-1)
             for p in g.repositories:
@@ -250,6 +243,7 @@ def main():
 
                     if args.backup:
                         p.save()
+                        # TODO export_last_sync
 
                     if args.backup_target:
                         # finding what remotes to back up
@@ -275,9 +269,6 @@ def main():
 
                     if args.recover:
                         p.recover(args.recover[0], args.recover[1])
-
-            if args.last_synced:
-                g.show_last_synced()
 
         overall_time = time.time() - overall_start
         log("\nEverything was done in %.2fs." % overall_time, color="boldgreen")

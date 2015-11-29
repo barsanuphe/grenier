@@ -87,7 +87,7 @@ track of when you last backed up your repositories (see `--last-synced`).
                    [-r RESTORE_DIRECTORY] [--last-synced]
                    [--recover REMOTE TARGET]
 
-    Grenier. A wrapper around bup, rclone, rsync, encfs to back stuff up.
+    Grenier. A wrapper around bup/encfs, restic, rclone, rsync, to back stuff up.
 
     optional arguments:
       -h, --help            show this help message and exit

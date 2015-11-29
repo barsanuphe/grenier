@@ -171,7 +171,7 @@ class GrenierRepository(object):
 
     def __str__(self):
         txt = "++ Repository %s\n" % self.name
-        txt += "\tBup Dir: %s\n" % self.repository_path
+        txt += "\tRepository path: %s\n" % self.repository_path
         txt += "\tSources:\n"
         for source in self.sources:
             if source.excluded_extensions:
