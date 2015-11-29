@@ -1,6 +1,7 @@
 *.pyc
 *.log
 grenier*.yaml
+grenier*.kdb
 *~
 TODO
 grenier.egg-info/

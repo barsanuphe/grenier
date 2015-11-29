@@ -236,7 +236,8 @@ space on that drive.
 **Grenier** does not configure rclone backends for you.
 You'll have to do this on your lonesome, before running **grenier**.
 
-
+If `rclone_config_file` or `kdb_file` are not absolute path, they are assumed to be in
+`$XDG_CONFIG_HOME/grenier/` just like the yaml file.
 
 ### grenier.yaml example
 

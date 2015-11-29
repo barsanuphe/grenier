@@ -218,7 +218,6 @@ def show_last_synced(last_synced_file_path):
 
 def backup_encfs_xml(xml_path, repository_name):
     # defaut xml backup location
-    # TODO: document in README
     backup_dir = Path(xdg.BaseDirectory.save_data_path("grenier"), "encfs_xml")
     if not backup_dir.exists():
         backup_dir.mkdir(parents=True)

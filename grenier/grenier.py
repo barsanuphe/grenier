@@ -28,8 +28,8 @@ class Grenier(object):
         # use the same file. Hide your RAM from prying eyes.
         self.master_passwords = {}
 
-        data_path = xdg.BaseDirectory.save_data_path("grenier")
-        self.last_synced_file_path = Path(data_path, LAST_SYNCED)
+        self.data_path = xdg.BaseDirectory.save_data_path("grenier")
+        self.last_synced_file_path = Path(self.data_path, LAST_SYNCED)
 
     def __enter__(self):
         return self
@@ -50,10 +50,16 @@ class Grenier(object):
                         default_rclone_config_file = "/home/%s/.rclone.conf" % getpass.getuser()
                         rclone_config_file = Path(config[p].get("rclone_config_file",
                                                                 default_rclone_config_file))
+                        if not rclone_config_file.is_absolute():
+                            rclone_config_file = Path(xdg.BaseDirectory.save_config_path("grenier"),
+                                                      rclone_config_file)
 
                         kdb_file = config[p].get("kdb_file", None)
                         if kdb_file:
                             kdb_file = Path(kdb_file)
+                            if not kdb_file.is_absolute():
+                                kdb_file = Path(xdg.BaseDirectory.save_config_path("grenier"),
+                                                kdb_file)
                             assert kdb_file.exists()
                             if kdb_file in self.master_passwords:
                                 passphrase = self.master_passwords[kdb_file]
