@@ -64,16 +64,18 @@ class GrenierRepository(object):
             original_size = get_folder_size(self.repository_path)
             success, errlog = self.backend.save(self.sources, display)
             if success:
+                self.just_synced.append({"repository": time.strftime("%Y-%m-%d_%Hh%M")})
                 new_size = get_folder_size(self.repository_path)
                 delta = new_size - original_size
                 green("+ Final repository size: %s (+%s)." % (readable_size(new_size),
                                                               readable_size(delta)), display)
                 green("+ Backup done in %.2fs." % (time.time() - starting_time), display)
+
             else:
                 red("!!! Error saving repository, stopping.", display)
             return success, errlog
 
-    def sync_remote(self, remote_name, display=False):
+    def sync_remote(self, remote_name, display=True):
         remote = self._find_remote_by_name(remote_name)
         save_success = False
         err_log = ""

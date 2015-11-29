@@ -3,9 +3,6 @@
 grenier*.yaml
 *~
 TODO
-old
-hubic_credentials
-test
 grenier.egg-info/
 .idea/
 test_files/backup/

@@ -109,7 +109,6 @@ class Backend(object):
 
     def sync_to_cloud(self, repository_name, remote, rclone_config_file, encfs_mount=None,
                       password="", display=True):
-        # TODO: update sync yaml aussi!!!!!
         return rclone_command(rclone_config_file,
                               "sync",
                               self.repository_path,

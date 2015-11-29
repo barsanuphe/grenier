@@ -209,7 +209,7 @@ def show_last_synced(last_synced_file_path):
     for r in last_synced:
         logger.info("%s:" % r)
         for dest in last_synced[r]:
-            logger.info("\t%s\t%s" % (dest+(10-len(dest))*" ", last_synced[r][dest]))
+            logger.info("\t%s\t%s" % (dest+(20-len(dest))*" ", last_synced[r][dest]))
 
 
 # Other things

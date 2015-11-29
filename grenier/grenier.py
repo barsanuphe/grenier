@@ -243,7 +243,6 @@ def main():
 
                     if args.backup:
                         p.save()
-                        # TODO export_last_sync
 
                     if args.backup_target:
                         # finding what remotes to back up
@@ -253,8 +252,12 @@ def main():
                             remote_names = [el.name for el in p.remotes]
                             remotes_to_backup = [d for d in args.backup_target
                                                  if d in remote_names]
+                        if not remotes_to_backup:
+                            red("Unknown remote(s): %s!!" % " ".join(args.backup_target))
                         for remote in remotes_to_backup:
                             p.sync_remote(remote)
+
+                    if p.just_synced:
                         g.export_last_sync()
 
                     if args.fuse:
