@@ -253,7 +253,7 @@ def main():
                     if args.backup_target:
                         # finding what remotes to back up
                         if args.backup_target == ["all"]:
-                            remotes_to_backup = p.remotes
+                            remotes_to_backup = [el.name for el in p.remotes]
                         else:
                             remote_names = [el.name for el in p.remotes]
                             remotes_to_backup = [d for d in args.backup_target

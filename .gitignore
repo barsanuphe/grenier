@@ -8,4 +8,4 @@ grenier.egg-info/
 .idea/
 test_files/backup/
 test_files/fuse/
-test_files/rclone.conf
+rclone.conf
