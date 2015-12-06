@@ -164,25 +164,26 @@ def umount(path):
 # -------------------
 
 
-def find_password(db_file, repository_name):
-    password = getpass.getpass("Password for %s: " % db_file.name)
+def find_password(db_file, repository_name, kdb_password=None):
+    if not kdb_password:
+        kdb_password = getpass.getpass("Password for %s: " % db_file.name)
     try:
         with db_file.open("rb") as f:
-            db = Database(f.read(), password=password.encode("utf8"))
+            db = Database(f.read(), password=kdb_password.encode("utf8"))
     except InvalidPasswordError:
         print("Wrong password for unlocking .kdb file!!")
         return None, None
     try:
         entry = db.find_by_title(repository_name)
         if entry.group.group_name == "grenier":
-            return password, entry.password
+            return kdb_password, entry.password
         else:
             print("Could not find kdb entry for grenier/%s!!!" % repository_name)
-            return password, None
+            return kdb_password, None
     except EntryNotFoundError as err:
 
         print(err)
-        return password, None
+        return kdb_password, None
 
 
 # yaml operations save file

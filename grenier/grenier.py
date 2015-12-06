@@ -61,13 +61,18 @@ class Grenier(object):
                                 kdb_file = Path(xdg.BaseDirectory.save_config_path("grenier"),
                                                 kdb_file)
                             assert kdb_file.exists()
+
+                            # find out if kdb file was already opened
+                            master_password = None
                             if kdb_file in self.master_passwords:
-                                passphrase = self.master_passwords[kdb_file]
-                            else:
-                                master_password, repository_password = find_password(kdb_file, p)
-                                if master_password and repository_password:
-                                    self.master_passwords[kdb_file] = master_password
-                                    passphrase = repository_password
+                                master_password = self.master_passwords[kdb_file]
+
+                            # find repository password
+                            master_password, repository_password = find_password(kdb_file, p,
+                                                                                 kdb_password=master_password)
+                            if master_password and repository_password:
+                                self.master_passwords[kdb_file] = master_password
+                                passphrase = repository_password
                         else:
                             passphrase = config[p].get("passphrase", None)
                         # we really should have the password by now

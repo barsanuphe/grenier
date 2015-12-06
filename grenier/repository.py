@@ -61,14 +61,14 @@ class GrenierRepository(object):
         else:
             if check_before:
                 self.check_and_repair(display)
-            original_size = get_folder_size(self.repository_path)
+            # original_size = get_folder_size(self.repository_path)
             success, errlog = self.backend.save(self.sources, display)
             if success:
                 self.just_synced.append({"repository": time.strftime("%Y-%m-%d_%Hh%M")})
-                new_size = get_folder_size(self.repository_path)
-                delta = new_size - original_size
-                green("+ Final repository size: %s (+%s)." % (readable_size(new_size),
-                                                              readable_size(delta)), display)
+                # new_size = get_folder_size(self.repository_path)
+                # delta = new_size - original_size
+                # green("+ Final repository size: %s (+%s)." % (readable_size(new_size),
+                #                                               readable_size(delta)), display)
                 green("+ Backup done in %.2fs." % (time.time() - starting_time), display)
 
             else:
